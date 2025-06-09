@@ -18,8 +18,8 @@ IAQ in this library is reported as a percentage from 0-100%, representing "bad" 
 
 ## Credits
 The IAQ formula and algorithm in this library is a direct port of the Python code found at:
-https://github.com/thstielow/raspi-bme680-iaq
-https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/15
+[https://github.com/thstielow/raspi-bme680-iaq](https://github.com/thstielow/raspi-bme680-iaq)
+[https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/15](https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/15)
 Full credit for the IAQ feature in this library goes to that project and the extensive research done by its author. The only modifications here are attempts to enhance the gas resistance tracking and stabilization approach, but the equations are the same. The author's formula includes a slope factor that was determined through experimentation. Fine-tuning the air quality calculation will require duplicating their approach to determine a more accurate slope factor for a specific BME680 sensor and target environment. 
 
 # How to use this library
