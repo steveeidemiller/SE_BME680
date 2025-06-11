@@ -1,6 +1,9 @@
+/**
+ * @file  SE_BME680.h
+ * @brief Extension of the Adafruit BME680 library to add temperature compensation, humidity compensation, a dew point calculation, and a simple IAQ (indoor air quality) calculation
+ */
 
-
-#ifndef __SE_BME680_H__
+ #ifndef __SE_BME680_H__
 #define __SE_BME680_H__
 
 #include <Arduino.h>
@@ -15,23 +18,61 @@
 class SE_BME680 : public Adafruit_BME680
 {
   private:
-    float temperature_offset = -1.5F; // Temperature offset in degrees Celsius, added to the raw temperature reading and used to compensate humidity and dew point calculations
 
-    double gas_calibration_data[GAS_CALIBRATION_DATA_POINTS]; // Array of highest compensated gas readings used to calculate gas_ceiling
-    int    gas_calibration_data_index = 0; // Index for the next entry in the gas calibration data array, which wraps around to zero when the end of the array is reached
-    double gas_ceiling = 0; // The average highest compensated gas reading, used as the threshold for a "good" air quality reading
+    // Temperature offset in degrees Celsius, added to the raw temperature reading and used to compensate humidity and dew point calculations
+    float temperature_offset = -1.5F;
 
-    unsigned long gas_calibration_timer = 0; // Timer for gas calibration, used to track upper limits of gas resistance during sensor stabilization
-    int gas_calibration_stage = 0; // Current stage of gas calibration: 0 = initialization, 1 = burn-in, 2 = normal operation
-    int gas_calibration_init_time = 30*1000; // Stage 0: Initialization time in milliseconds (30 seconds). The gas resistance will not be stable yet, but ceiling tracking can start and a low accuracy IAQ can be calculated. Resistance values prior to this time are very unstable.
-    int gas_calibration_burnin_time = 5*60*1000; // Stage 1: Burn-in time in milliseconds (5 minutes). After this time, the gas resistance is expected to be moderately stable and a more accurate IAQ can be calculated.
-    int gas_calibration_decay_time = 30*60*1000; // Stage 2: Time in milliseconds (30 minutes) after which the gas calibration data decays and the gas ceiling needs to be recalculated. This is to account for sensor drift and changes in the environment.
-    int gas_calibration_accuracy = 0; // Current accuracy of the IAQ reading: 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy
+    // Array of compensated gas readings used to calculate gas_ceiling
+    double gas_calibration_data[GAS_CALIBRATION_DATA_POINTS];
 
+    // Index for the next entry in the gas calibration data array, which wraps around to zero when the end of the array is reached
+    int gas_calibration_data_index = 0;
+
+    // The average highest compensated gas reading, derived from values stord in gas_calibration_data[], used as the threshold for a "good" air quality reading
+    double gas_ceiling = 0;
+
+    // Range of compensated gas resistance values used for gas calibration, calculated as a percentage of the maximum value in gas_calibration_data[]
+    double gas_calibration_range = 0;
+
+    // Timer for gas calibration stages, used to track sensor stabilization
+    unsigned long gas_calibration_timer = 0;
+
+    // Current stage of gas calibration: 0 = initialization, 1 = burn-in, 2 = normal operation
+    int gas_calibration_stage = 0;
+
+    // Ignore any values lower than this for the purposes of calculating the gas ceiling
+    uint32_t gas_resistance_limit_min = 100000;
+
+    // Ignore any values higher than this for the purposes of calculating the gas ceiling
+    uint32_t gas_resistance_limit_max = 175000;
+
+    // Stage 0: Initialization time in milliseconds (30 seconds). The gas resistance will not be stable yet, but ceiling tracking can start and a low accuracy IAQ can be calculated. Resistance values prior to this time are very unstable.
+    int gas_calibration_init_time = 30*1000;
+
+    // Stage 1: Burn-in time in milliseconds (5 minutes). After this time, the gas resistance is expected to be moderately stable and a more accurate IAQ can be calculated.
+    int gas_calibration_burnin_time = 5*60*1000;
+
+    // Stage 2: Time in milliseconds (30 minutes) after which the gas calibration data decays and the gas ceiling needs to be recalculated. This is to account for sensor drift and changes in the environment.
+    int gas_calibration_decay_time = 30*60*1000;
+
+    // Slope of the linear compensation of the logatihmic gas resistance by the present humidity (see references)
+    double iaq_slope_factor = 0.03;
+
+    /*!
+    *  @brief  Common initialization code for all constructors
+    */
     void initialize();
 
+    /*!
+    *  @brief  Update gas calibration data with a new compensated gas reading, calculate the arithmetic mean of the gas calibration data, and update the gas ceiling value
+    *  @param  compensated_gas
+    *          The compensated gas resistance value to be added to the gas calibration data
+    */
     void updateGasCalibration(double compensated_gas);
 
+    /*!
+    *  @brief  Calculate the Indoor Air Quality (IAQ) based on the compensated gas resistance and the ongoing average gas ceiling
+    */
     void calculateIAQ();
 
   public:
@@ -50,17 +91,11 @@ class SE_BME680 : public Adafruit_BME680
     // Dew point (Celsius) based on compensated temperature and humidity, assigned after calling performReading() or endReading()
     //float dew_point_compensated;
 
-    // Ignore any values lower than this for the purposes of calculating the gas ceiling
-    uint32_t gas_resistance_limit_min = 100000;
-
-    // Ignore any values higher than this for the purposes of calculating the gas ceiling
-    uint32_t gas_resistance_limit_max = 175000;
-
-    //
-    double iaq_slope_factor = 0.03;
-
     // Indor Air Quality (0-100%, bad to good), assigned after calling performReading() or endReading()
     float IAQ = 50.0F; // Default to 50% (neutral air quality) while accuracy is 0, which is the default "unreliable" accuracy level before any readings are taken
+
+    // Current accuracy of the IAQ reading: 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy
+    int IAQ_accuracy = 0;
 
     /*!
     *  @brief  Initialize with I2C
@@ -91,20 +126,94 @@ class SE_BME680 : public Adafruit_BME680
     */
     SE_BME680(int8_t cspin, int8_t mosipin, int8_t misopin, int8_t sckpin);
 
-    // Sets the temperature offset in degrees Celsius. Added to the raw temperature reading and also used to compensate the humidity and dew point calculations.
+    /*!
+    *  @brief  Set temperature compensation in degrees Celsius
+    *  @param  degreesC
+    *          Temperature offset in degrees Celsius to be added to the raw temperature reading and used to compensate humidity and dew point calculations
+    */
     void setTemperatureCompensation(float degreesC);
 
-    // Sets the temperature offset in degrees Fahrenheit. Added to the raw temperature reading and also used to compensate the humidity and dew point calculations.
+    /*!
+    *  @brief  Set temperature compensation in degrees Fahrenheit
+    *  @param  degreesF
+    *          Temperature offset in degrees Fahrenheit to be added to the raw temperature reading and used to compensate humidity and dew point calculations
+    */
     void setTemperatureCompensationF(float degreesF);
 
-    //
+    /*!
+    *  @brief  Perform a reading from the BME680 sensor
+    *  @return True if the reading was successful, false otherwise
+    */
     bool performReading();
 
-    //
+    /*!
+    *  @brief  Begin a reading from the BME680 sensor
+    *  @return The time in milliseconds until the reading is expected to complete
+    */
     uint32_t beginReading();
 
-    //
+    /*!
+    *  @brief  End a reading from the BME680 sensor and process the results
+    *  @return True if the reading was successful, false otherwise
+    */
     bool endReading();
+
+    /*!
+    *  @brief Performs a reading and returns the dew point
+    *  @return Dew point in degrees Celsius
+    */
+    float readDewPoint(void);
+    
+    /*!
+    *  @brief Performs a reading and returns the compensated temperature
+    *  @return Compensated temperature in degrees Celsius
+    */
+    float readCompensatedTemperature(void);
+
+    /*!
+    *  @brief Performs a reading and returns the compensated humidity
+    *  @return Compensated humidity in percentage (0-100)
+    */
+    float readCompensatedHumidity(void);
+
+    /*!
+    *  @brief Performs a reading and returns the Indoor Air Quality (IAQ)
+    *  @return IAQ value (0-100%, where 0% is bad air quality and 100% is good air quality)
+    */
+    float readIAQ(void);
+
+    /*!
+    *  @brief Get the estimated accuracy of the IAQ reading
+    *  @return 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy
+    */
+    int getIAQAccuracy(void);
+
+    /*!
+    *  @brief Set gas resistance compensation slope factor
+    *  @param slopeFactor
+    *         The slope factor for the linear compensation of the logarithmic gas resistance by the present humidity (default 0.03)
+    */
+    void setGasCompensationSlopeFactor(double slopeFactor = 0.03);
+
+    /*!
+    *  @brief Set the lower and upper "high" gas resistance limits for gas calibration
+    *  @param minLimit
+    *         The minimum gas resistance limit (in ohms) for gas ceiling calibration. High readings below this threshold are rounded up to it.
+    *  @param maxLimit
+    *         The maximum gas resistance limit (in ohms) above which gas readings are ignored for gas ceiling calibration
+    */
+    void setUpperGasResistanceLimits(uint32_t minLimit = 100000, uint32_t maxLimit = 175000);
+
+    /*!
+    *  @brief Set timings for gas calibration stages
+    *  @param initTime
+    *         The time in milliseconds for the initialization stage (default 30 seconds)
+    *  @param burninTime
+    *         The time in milliseconds for the burn-in stage (default 5 minutes)
+    *  @param decayTime
+    *         The time in milliseconds for the decay stage (default 30 minutes)
+    */
+    void setGasCalibrationTimings(int initTime = 30 * 1000, int burninTime = 5 * 60 * 1000, int decayTime = 30 * 60 * 1000);
 };
 
 #endif

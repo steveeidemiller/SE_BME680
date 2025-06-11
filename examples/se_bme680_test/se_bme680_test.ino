@@ -1,4 +1,9 @@
-#include <SE_BME680.h>
+/**
+ * @file  se_bme680_test.ino
+ * @brief Example sketch for testing the SE_BME680 library
+ */
+
+ #include <SE_BME680.h>
 
 //TODO: add support for other constructors, e.g. with I2C address, SPI, etc.
 SE_BME680 bme;

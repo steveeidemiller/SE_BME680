@@ -20,7 +20,10 @@ IAQ in this library is reported as a percentage from 0-100%, representing "bad" 
 The IAQ formula and algorithm in this library is a direct port of the Python code found at:
 https://github.com/thstielow/raspi-bme680-iaq<br/>
 https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/15<br/>
-Full credit for the IAQ feature in this library goes to that project and the extensive research done by its author. The only modifications here are attempts to enhance the gas resistance tracking and stabilization approach, but the equations are the same. The author's formula includes a slope factor that was determined through experimentation. Fine-tuning the air quality calculation will require duplicating their approach to determine a more accurate slope factor for a specific BME680 sensor and target environment. 
+
+Full credit for the IAQ feature in this library goes to that project and the extensive research done by its author. The only modifications here are attempts to enhance the gas resistance tracking and stabilization approach, but the equations are the same.
+
+The author's formula includes a slope factor that was determined through experimentation. Fine-tuning the air quality calculation will require duplicating their approach to determine a more accurate slope factor for a specific BME680 sensor and target environment. 
 
 # How to use this library
 It is intended to be a drop-in replacement for the Adafruit BME680 library. First, add this library to the Arduino IDE using the built-in library manager. Next, simply change the include and main object type in your sketch:
