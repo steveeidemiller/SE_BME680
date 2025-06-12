@@ -17,7 +17,7 @@ The BME680 includes a MOX sensor that can be used to measure the presence of vol
 IAQ in this library is reported as a percentage from 0-100%, representing "bad" to "good" air quality. BSEC also offers VOC and CO2 calculations. However, those calculations are derived from the same MOX resistance value and are therefore strongly correlated to the overall IAQ itself. When plotted on the same graph, all three calculations end up looking identical differing only in scale and units. Therefore, this library does not attempt to replicate those additional calculations.
 
 ## Credits
-The IAQ formula and algorithm in this library is a direct port of the Python code found at:
+The IAQ formula and algorithm in this library is a direct port of the Python code found at:<br/>
 https://github.com/thstielow/raspi-bme680-iaq<br/>
 https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/15<br/>
 
