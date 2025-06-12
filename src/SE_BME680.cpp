@@ -34,6 +34,7 @@ void SE_BME680::initialize(void)
   gas_ceiling = 0; // Default to zero gas ceiling
   IAQ = 50.0F; // Default to 50% (neutral air quality) while accuracy is 0, which is the default "unreliable" accuracy level before any readings are taken
   IAQ_accuracy = 0; // Default to unreliable accuracy
+  sensor_uptime = 0; // Reset uptime tracking
 
   // Reset the gas calibration timer
   gas_calibration_timer = millis();
@@ -130,7 +131,7 @@ void SE_BME680::calculateIAQ()
   // Compensate exponential impact of humidity on resistance
   double factor = exp(iaq_slope_factor * hum_abs); // Exponential factor based on humidity
   double compensated_gas_r = (double)gas_resistance * factor; // Compensated gas resistance based on the humidity factor
-  double compensated_gas_r_min = (double)gas_resistance_limit_min * factor; // Compensated minimum gas resistance limit based on the humidity factor
+  double compensated_gas_r_min = (double)gas_resistance_limit_min * factor; // Compensated minimum gas resistance limit based on the humidity factor, important if the sensor is started in a low air quality environment
   if (isnan(compensated_gas_r) || isnan(compensated_gas_r_min)) return;
 
   // Update gas calibration data with the compensated gas resistance value
@@ -166,6 +167,7 @@ void SE_BME680::calculateIAQ()
         {
           updateGasCalibration(compensated_gas_r, false); // Adapt ongoing average gas ceiling based on decay timings
           gas_calibration_timer = millis(); // Reset the calibration timer to start a new decay period
+          sensor_uptime++; // Increment sensor uptime to track how long the sensor has been running in the current environment
         }
       }
       break;
@@ -190,8 +192,8 @@ void SE_BME680::calculateIAQ()
       break;
     case 2: // Normal operation stage
       IAQ_accuracy = 1; // Low accuracy by default
-      if (gas_calibration_range < 0.05) IAQ_accuracy = 2; // Moderate accuracy when data range exhibits < 5% variation
-      if (gas_calibration_range < 0.02) IAQ_accuracy = 3; // High accuracy when data range exhibits < 2% variation
+      if (gas_calibration_range < 0.075) IAQ_accuracy = 2; // Moderate accuracy
+      if (gas_calibration_range < 0.035 && sensor_uptime >= 2) IAQ_accuracy = 3; // High accuracy, requires at least several decay intervals of sensor uptime in the current environment
       break;
   }
 }

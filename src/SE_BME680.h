@@ -43,7 +43,7 @@ class SE_BME680 : public Adafruit_BME680
     // Ignore any values lower than this for the purposes of calculating the gas ceiling
     uint32_t gas_resistance_limit_min = 50000;
 
-    // Ignore any values higher than this for the purposes of calculating the gas ceiling
+    // Ignore any values higher than this for the purposes of calculating the gas ceiling, which is important if the sensor is started in a low air quality environment
     uint32_t gas_resistance_limit_max = 225000;
 
     // Stage 0: Initialization time in milliseconds (30 seconds). The gas resistance will not be stable yet, but ceiling tracking can start and a low accuracy IAQ can be calculated. Resistance values prior to this time are very unstable.
@@ -58,6 +58,9 @@ class SE_BME680 : public Adafruit_BME680
     // Slope of the linear compensation of the logatihmic gas resistance by the present humidity (see references)
     double iaq_slope_factor = 0.03;
 
+    // Sensor uptime measured in decay intervals, used to estimate IAQ accuracy based on how long the sensor has been running in the current environment
+    int32_t sensor_uptime = 0;
+  
     /*!
     *  @brief  Common initialization code for all constructors
     */
@@ -96,7 +99,7 @@ class SE_BME680 : public Adafruit_BME680
     // Indor Air Quality (0-100%, bad to good), assigned after calling performReading() or endReading()
     float IAQ = 50.0F; // Default to 50% (neutral air quality) while accuracy is 0, which is the default "unreliable" accuracy level before any readings are taken
 
-    // Current accuracy of the IAQ reading: 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy
+    // Estimated accuracy of the current IAQ reading: 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy
     int IAQ_accuracy = 0;
 
     /*!
