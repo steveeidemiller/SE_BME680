@@ -99,7 +99,7 @@ class SE_BME680 : public Adafruit_BME680
     // Indor Air Quality (0-100%, bad to good), assigned after calling performReading() or endReading()
     float IAQ = 50.0F; // Default to 50% (neutral air quality) while accuracy is 0, which is the default "unreliable" accuracy level before any readings are taken
 
-    // Estimated accuracy of the current IAQ reading: 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy
+    // Estimated accuracy of the current IAQ reading: 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
     int IAQ_accuracy = 0;
 
     /*!
@@ -189,7 +189,7 @@ class SE_BME680 : public Adafruit_BME680
 
     /*!
     *  @brief Get the estimated accuracy of the IAQ reading
-    *  @return 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy
+    *  @return 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
     */
     int getIAQAccuracy(void);
 
