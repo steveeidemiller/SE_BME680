@@ -41,10 +41,10 @@ class SE_BME680 : public Adafruit_BME680
     int gas_calibration_stage = 0;
 
     // Ignore any values lower than this for the purposes of calculating the gas ceiling
-    uint32_t gas_resistance_limit_min = 100000;
+    uint32_t gas_resistance_limit_min = 50000;
 
     // Ignore any values higher than this for the purposes of calculating the gas ceiling
-    uint32_t gas_resistance_limit_max = 175000;
+    uint32_t gas_resistance_limit_max = 225000;
 
     // Stage 0: Initialization time in milliseconds (30 seconds). The gas resistance will not be stable yet, but ceiling tracking can start and a low accuracy IAQ can be calculated. Resistance values prior to this time are very unstable.
     int gas_calibration_init_time = 30*1000;
@@ -67,8 +67,10 @@ class SE_BME680 : public Adafruit_BME680
     *  @brief  Update gas calibration data with a new compensated gas reading, calculate the arithmetic mean of the gas calibration data, and update the gas ceiling value
     *  @param  compensated_gas
     *          The compensated gas resistance value to be added to the gas calibration data
+    *  @param  replaceSmallest
+    *          If true, replace the smallest value in the gas calibration data array with the new compensated gas reading; otherwise, just add the new reading to the array
     */
-    void updateGasCalibration(double compensated_gas);
+    void updateGasCalibration(double compensated_gas, bool replaceSmallest = false);
 
     /*!
     *  @brief  Calculate the Indoor Air Quality (IAQ) based on the compensated gas resistance and the ongoing average gas ceiling
@@ -189,11 +191,20 @@ class SE_BME680 : public Adafruit_BME680
     int getIAQAccuracy(void);
 
     /*!
+    *  @brief Get the current gas calibration stage
+    *  @details The gas calibration stages are:
+    *           0 = Initialization stage (first 30 seconds), where gas resistance is not stable yet and no gas calibration data is collected
+    *           1 = Burn-in stage (first 5 minutes), where gas resistance is expected to be moderately stable and a low accuracy IAQ can be calculated
+    *           2 = Normal operation stage (after first 5 minutes)
+    */
+    int getGasCalibrationStage(void);
+
+    /*!
     *  @brief Set gas resistance compensation slope factor
     *  @param slopeFactor
     *         The slope factor for the linear compensation of the logarithmic gas resistance by the present humidity (default 0.03)
     */
-    void setGasCompensationSlopeFactor(double slopeFactor = 0.03);
+    bool setGasCompensationSlopeFactor(double slopeFactor = 0.03);
 
     /*!
     *  @brief Set the lower and upper "high" gas resistance limits for gas calibration
@@ -202,7 +213,7 @@ class SE_BME680 : public Adafruit_BME680
     *  @param maxLimit
     *         The maximum gas resistance limit (in ohms) above which gas readings are ignored for gas ceiling calibration
     */
-    void setUpperGasResistanceLimits(uint32_t minLimit = 100000, uint32_t maxLimit = 175000);
+    bool setUpperGasResistanceLimits(uint32_t minLimit = 30000, uint32_t maxLimit = 225000);
 
     /*!
     *  @brief Set timings for gas calibration stages
@@ -212,8 +223,10 @@ class SE_BME680 : public Adafruit_BME680
     *         The time in milliseconds for the burn-in stage (default 5 minutes)
     *  @param decayTime
     *         The time in milliseconds for the decay stage (default 30 minutes)
+    * @return True if the timings were set successfully, false if the timings are invalid
+    *         (e.g., if initTime is not less than burninTime, or burninTime is not less than decayTime)
     */
-    void setGasCalibrationTimings(int initTime = 30 * 1000, int burninTime = 5 * 60 * 1000, int decayTime = 30 * 60 * 1000);
+    bool setGasCalibrationTimings(int initTime = 30 * 1000, int burninTime = 5 * 60 * 1000, int decayTime = 30 * 60 * 1000);
 };
 
 #endif

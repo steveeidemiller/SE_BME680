@@ -63,8 +63,5 @@ If the sensor is started up in an environment with high VOC contaminants, the tr
 ## IMPORTANT
 The gas resistance tracking and default slope factor are heavily dependent on polling frequency. It is strongly recommended that the sensor is polled roughly every second to ensure the best possible IAQ accuracy. 
 
-## Internal IAQ Calculation Controls
-TODO: boundaries and timings are public properties that can be altered before calling bme.begin()
-
 ## Example Code
 An example sketch is provided and can be found under "File->Examples->SE BME680 Library->se_bme680_test" in the Arduino IDE.

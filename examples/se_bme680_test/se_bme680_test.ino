@@ -73,6 +73,14 @@ void loop()
     Serial.print("IAQ:                       ");
     Serial.print(bme.IAQ);
     Serial.println(" %");
+
+    Serial.print("IAQ accuracy:              ");
+    Serial.print(bme.IAQ_accuracy);
+    Serial.println();
+  
+    Serial.print("Gas Calibration Stage:     ");
+    Serial.print(bme.getGasCalibrationStage());
+    Serial.println();
   }
   else
   {

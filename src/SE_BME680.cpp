@@ -40,20 +40,43 @@ void SE_BME680::initialize(void)
 }
 
 // Update gas calibration data with a new compensated gas reading, calculate the arithmetic mean of the gas calibration data, and update the gas ceiling value
-void SE_BME680::updateGasCalibration(double compensated_gas)
+void SE_BME680::updateGasCalibration(double compensated_gas, bool replaceSmallest)
 {
-  // Add the compensated gas reading to the gas calibration data array
-  gas_calibration_data[gas_calibration_data_index] = compensated_gas;
-  gas_calibration_data_index++;
-  if (gas_calibration_data_index >= GAS_CALIBRATION_DATA_POINTS)
+  // Update the array of compensated gas readings with the new compensated gas reading
+  if (replaceSmallest && gas_calibration_data[GAS_CALIBRATION_DATA_POINTS - 1] > 0) // If (replaceSmallest is true AND the array is already full of values collected during burn-in)...
   {
-    // Wrap around to the beginning of the array
-    gas_calibration_data_index = 0;
+    // Replace the smallest value in the gas calibration data array with the new compensated gas reading
+    double smallest_value = gas_calibration_data[0];
+    int smallest_index = 0;
+    for (int i = 1; i < GAS_CALIBRATION_DATA_POINTS; i++)
+    {
+      if (gas_calibration_data[i] < smallest_value)
+      {
+        smallest_value = gas_calibration_data[i];
+        smallest_index = i;
+      }
+    }
+    if (compensated_gas > smallest_value)
+    {
+      // Replace the smallest value with the new compensated gas reading
+      gas_calibration_data[smallest_index] = compensated_gas;
+    }
+  }
+  else
+  {
+    // Add the compensated gas reading to the gas calibration data array
+    gas_calibration_data[gas_calibration_data_index] = compensated_gas;
+    gas_calibration_data_index++;
+    if (gas_calibration_data_index >= GAS_CALIBRATION_DATA_POINTS)
+    {
+      // Wrap around to the beginning of the array
+      gas_calibration_data_index = 0;
+    }
   }
 
   // Calculate the arithmetic mean and min/max range of the calibration array (which may not be completely populated yet)
   double dataPoint, sum = 0, mean = 0, calMin = 0, calMax = 0, calRange = 0;
-  int j = 0;
+  int count = 0;
   for (int i = 0; i < GAS_CALIBRATION_DATA_POINTS; i++)
   {
     dataPoint = gas_calibration_data[i];
@@ -62,17 +85,17 @@ void SE_BME680::updateGasCalibration(double compensated_gas)
       sum += dataPoint;
       if (calMin == 0) calMin = dataPoint; else calMin = min(calMin, dataPoint);
       if (calMax == 0) calMax = dataPoint; else calMax = max(calMax, dataPoint);
-      j++;
+      count++;
     }
   }
-  if (j)
+  if (count)
   {
     if (calMax > 0)
     {
       // Calculate the min/max range as a percentage of the maximum value        
       gas_calibration_range = (calMax - calMin) / calMax;
     }
-    mean = sum / (double)j;
+    mean = sum / (double)count;
     if (!isnan(mean))
     {
       // Update the gas ceiling value with the new mean
@@ -105,9 +128,10 @@ void SE_BME680::calculateIAQ()
   double hum_abs = humidity * 10 * svd;
 
   // Compensate exponential impact of humidity on resistance
-  uint32_t resistance = max(gas_resistance, gas_resistance_limit_min); // Ensure resistance is within the defined limits
-  double compensated_gas_r = (double)resistance * exp(iaq_slope_factor * hum_abs);
-  if (isnan(compensated_gas_r)) return;
+  double factor = exp(iaq_slope_factor * hum_abs); // Exponential factor based on humidity
+  double compensated_gas_r = (double)gas_resistance * factor; // Compensated gas resistance based on the humidity factor
+  double compensated_gas_r_min = (double)gas_resistance_limit_min * factor; // Compensated minimum gas resistance limit based on the humidity factor
+  if (isnan(compensated_gas_r) || isnan(compensated_gas_r_min)) return;
 
   // Update gas calibration data with the compensated gas resistance value
   switch (gas_calibration_stage)
@@ -122,8 +146,8 @@ void SE_BME680::calculateIAQ()
     case 1: // Burn-in stage. The sensor is expected to start mildly stabilizing and gas ceiling values can now be collected.
       if (millis() - gas_calibration_timer < gas_calibration_burnin_time)
       {
-//TODO: can't just grab every value during burn-in. IAQ will basically get pegged at 100% during this stage if we do that
-        updateGasCalibration(compensated_gas_r); // Collect gas calibration data
+        // Fill the calibration array first, and then continue to update the array by replacing the smallest value. This effectively collects the highest witnessed compensated gas resistance values during burn-in.
+        updateGasCalibration(max(compensated_gas_r, compensated_gas_r_min), true); // Limit calibration data to the compensated minimum gas resistance limit
       }
       else
       {
@@ -132,14 +156,17 @@ void SE_BME680::calculateIAQ()
       break;
 
     case 2: // Normal operation stage
-      if (compensated_gas_r > gas_ceiling)
+      if (compensated_gas_r > compensated_gas_r_min)
       {
-        updateGasCalibration(compensated_gas_r); // Adapt ongoing average gas ceiling based on new high readings
-      }
-      else if (millis() - gas_calibration_timer >= gas_calibration_decay_time)
-      {
-        updateGasCalibration(compensated_gas_r); // Adapt ongoing average gas ceiling based on decay timings
-        gas_calibration_timer = millis(); // Reset the calibration timer to start a new decay period
+        if (compensated_gas_r > gas_ceiling)
+        {
+          updateGasCalibration(compensated_gas_r, false); // Adapt ongoing average gas ceiling based on new high readings
+        }
+        else if (millis() - gas_calibration_timer >= gas_calibration_decay_time)
+        {
+          updateGasCalibration(compensated_gas_r, false); // Adapt ongoing average gas ceiling based on decay timings
+          gas_calibration_timer = millis(); // Reset the calibration timer to start a new decay period
+        }
       }
       break;
   }
@@ -162,9 +189,9 @@ void SE_BME680::calculateIAQ()
       IAQ_accuracy = 1; // Low accuracy
       break;
     case 2: // Normal operation stage
-      if (gas_calibration_range < 0.02) IAQ_accuracy = 3; // High accuracy when data range exhibits < 2% variation
+      IAQ_accuracy = 1; // Low accuracy by default
       if (gas_calibration_range < 0.05) IAQ_accuracy = 2; // Moderate accuracy when data range exhibits < 5% variation
-      IAQ_accuracy = 1; // Low accuracy
+      if (gas_calibration_range < 0.02) IAQ_accuracy = 3; // High accuracy when data range exhibits < 2% variation
       break;
   }
 }
@@ -259,23 +286,46 @@ int SE_BME680::getIAQAccuracy(void)
   return IAQ_accuracy;
 }
 
-// Set gas resistance compensation slope factor
-void SE_BME680::setGasCompensationSlopeFactor(double slopeFactor)
+// Get the current gas calibration stage
+int SE_BME680::getGasCalibrationStage(void)
 {
+  return gas_calibration_stage;
+}
+
+// Set gas resistance compensation slope factor
+bool SE_BME680::setGasCompensationSlopeFactor(double slopeFactor)
+{
+//TODO: Validate slope factor range, e.g., 0.01 to 0.1
   iaq_slope_factor = slopeFactor;
+  return true; // Slope factor successfully set
 }
 
 // Set the lower and upper "high" gas resistance limits for gas calibration
-void SE_BME680::setUpperGasResistanceLimits(uint32_t minLimit, uint32_t maxLimit)
+bool SE_BME680::setUpperGasResistanceLimits(uint32_t minLimit, uint32_t maxLimit)
 {
-  gas_resistance_limit_min = minLimit;
-  gas_resistance_limit_max = maxLimit;
+  if (minLimit >= 30000 && maxLimit <= 2000000 && minLimit <= maxLimit)
+  {
+    // Set the limits only if they are within a reasonable range
+    gas_resistance_limit_min = minLimit;
+    gas_resistance_limit_max = maxLimit;
+    return true; // Limits successfully set
+  }
+  return false; // Invalid limits
 }
 
 // Set timings for gas calibration stages
-void SE_BME680::setGasCalibrationTimings(int initTime, int burninTime, int decayTime)
+bool SE_BME680::setGasCalibrationTimings(int initTime, int burninTime, int decayTime)
 {
-  gas_calibration_init_time = initTime;
-  gas_calibration_burnin_time = burninTime;
-  gas_calibration_decay_time = decayTime;
+  if (initTime > 0 && burninTime >= initTime && decayTime >= burninTime)
+  {
+    // Ensure that the timings are valid
+    if (initTime < 1000) initTime = 1000; // Minimum 1 second for initialization
+    if (burninTime < initTime + 1000) burninTime = initTime + 1000; // Minimum 1 second after initialization for burn-in
+    if (decayTime < burninTime + 60000) decayTime = burninTime + 60000; // Minimum 1 minute after burn-in for decay
+    gas_calibration_init_time = initTime;
+    gas_calibration_burnin_time = burninTime;
+    gas_calibration_decay_time = decayTime;
+    return true; // Timings successfully set
+  }
+  return false; // Invalid timings
 }
