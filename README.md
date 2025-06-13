@@ -47,7 +47,7 @@ float d = bme.dew_point; // Dew point calculation, in Celsius
 ```
 ## Reading IAQ
 ```
-// Estimated IAQ calculation accuracy: 0=unreliable, 1=low accuracy, 2=medium accuracy, 3=high accuracy
+// Estimated IAQ calculation accuracy: 0=unreliable, 1=low accuracy, 2=medium accuracy, 3=high accuracy, 4=very high accuracy
 if (bme.IAQ_accuracy > 0)
 {
   // Use the IAQ value in your program
