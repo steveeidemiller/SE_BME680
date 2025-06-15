@@ -23,8 +23,11 @@ void setup()
     while (1);
   }
 
+  // Uncomment this line to set a temperature compensation, which is also used to compensate humidity
+  //bme.setTemperatureCompensation(-1.75F); // Celsius offset as type "float"
+
   /*
-  // Set up the sensor. These settings are the default ones, but you can adjust them as needed.
+  // Set up the sensor. These settings are the default ones, but you can uncomment this code block and adjust them as needed.
   bme.setTemperatureOversampling(BME680_OS_8X);
   bme.setHumidityOversampling(BME680_OS_2X);
   bme.setPressureOversampling(BME680_OS_4X);

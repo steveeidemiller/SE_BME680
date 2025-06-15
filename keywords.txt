@@ -1,0 +1,26 @@
+# Syntax coloring map for SE_BME680. All values MUST be separated by a single TAB character (not spaces).
+# Reference: https://arduino.github.io/arduino-cli/1.2/library-specification/#keywords
+
+# Classes and datatypes are KEYWORD1
+SE_BME680	KEYWORD1
+
+# Methods and functions are KEYWORD2
+setTemperatureCompensation	KEYWORD2
+setTemperatureCompensationF	KEYWORD2
+performReading	KEYWORD2
+beginReading	KEYWORD2
+endReading	KEYWORD2
+readDewPoint	KEYWORD2
+readCompensatedTemperature	KEYWORD2
+readCompensatedHumidity	KEYWORD2
+readIAQ	KEYWORD2
+getIAQAccuracy	KEYWORD2
+getGasCalibrationStage	KEYWORD2
+setGasCompensationSlopeFactor	KEYWORD2
+setUpperGasResistanceLimits	KEYWORD2
+setGasCalibrationTimings	KEYWORD2
+
+# Structures are KEYWORD3
+
+# Constants and defines are LITERAL1
+

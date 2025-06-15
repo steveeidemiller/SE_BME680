@@ -161,10 +161,12 @@ void SE_BME680::calculateIAQ()
       {
         if (compensated_gas_r > gas_ceiling)
         {
+          // Integrate new higher gas readings into the gas calibration data array to establish a better gas ceiling for "good" air quality
           updateGasCalibration(compensated_gas_r, false); // Adapt ongoing average gas ceiling based on new high readings
         }
         else if (millis() - gas_calibration_timer >= gas_calibration_decay_time)
         {
+          // Rotate out older values from the gas calibration data array to account for sensor drift and changes in the environment
           updateGasCalibration(compensated_gas_r, false); // Adapt ongoing average gas ceiling based on decay timings
           gas_calibration_timer = millis(); // Reset the calibration timer to start a new decay period
           sensor_uptime++; // Increment sensor uptime to track how long the sensor has been running in the current environment
@@ -194,7 +196,7 @@ void SE_BME680::calculateIAQ()
       IAQ_accuracy = 1; // Low accuracy by default
       if (gas_calibration_range < 0.075) IAQ_accuracy = 2; // Moderate accuracy
       if (gas_calibration_range < 0.035 && sensor_uptime >= 2) IAQ_accuracy = 3; // High accuracy, requires at least several decay intervals of sensor uptime in the current environment
-      if (gas_calibration_range < 0.02 && sensor_uptime >= 100) IAQ_accuracy = 4; // Very high accuracy, requires days of sensor uptime in the current environment
+      if (gas_calibration_range < 0.02 && sensor_uptime >= 100) IAQ_accuracy = 4; // Very high accuracy, which typicall requires days of sensor uptime in the current environment
       break;
   }
 }

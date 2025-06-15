@@ -12,9 +12,9 @@ The default temperature offset in this library is a good starting point. Fine-tu
 A dew point calculation is also provided and is based on the [Magnus formula](https://en.wikipedia.org/wiki/Dew_point#Calculating_the_dew_point). It is derived from the raw temperature and humidity measurements. Since the humidity compensation and dew point calculations are both based on Magnus transformations, there is no "compensated" dew point calculation. Dew point and "compensated" dew point would end up being identical values.
 
 ## IAQ
-The BME680 includes a MOX sensor that can be used to measure the presence of volatile organic compounds (VOC's) in the air. It only provides a single resistance value, so it has no selectivity for different gasses or alcohols. And the sensor does drift over time, so it's not an absolute reference. But it is very responsive and can be used to calculate a relative air quality index. Bosch provides the closed-source BSEC library for this purpose. This library makes no attempt to emulate the BSEC calculations, complexity or accuracy, but offers a reasonable approximation using much simpler logic and open-source code.
+The BME680 includes a MOX sensor that can be used to measure the presence of volatile organic compounds (VOC's) in the air. It only provides a single resistance value, so it has no selectivity for different gasses or alcohols. And the sensor does drift over time, so it's not an absolute reference. But it is very responsive and can be used to calculate a relative air quality index. Bosch provides the closed-source BSEC library for this purpose. This library makes no attempt to emulate the BSEC calculations, complexity or accuracy, but instead offers a reasonable approximation using much simpler logic and open-source code.
 
-IAQ in this library is reported as a percentage from 0-100%, representing "bad" to "good" air quality. BSEC also offers VOC and CO2 calculations. However, those calculations are derived from the same MOX resistance value and are therefore strongly correlated to the overall IAQ itself. When plotted on the same graph, all three calculations end up looking identical differing only in scale and units. Therefore, this library does not attempt to replicate those additional calculations.
+IAQ in this library is reported as a percentage from 0-100%, representing "bad" to "good" air quality. BSEC also offers VOC and CO2 calculations. However, those calculations are derived from the same MOX resistance value and are therefore strongly correlated to the overall IAQ itself. When plotted on the same graph, all three calculations end up looking identical differing only in scale and units. This library does not attempt to replicate those additional calculations for that reason and simply focuses on the main IAQ.
 
 ## Credits
 The IAQ formula and algorithm in this library is a direct port of the Python code found at:<br/>
@@ -43,7 +43,7 @@ float h = bme.humidity; // Raw humidity value from the base Adafruit library, un
 // New properties provided by this library
 float tc = bme.temperature_compensated; // Compensated temperature value, in Celsius
 float hc = bme.humidity_compensated; // Compensated humidity value, based on the specified temperature compensation
-float d = bme.dew_point; // Dew point calculation, in Celsius
+float dp = bme.dew_point; // Dew point calculation, in Celsius
 ```
 ## Reading IAQ
 ```
@@ -54,7 +54,7 @@ if (bme.IAQ_accuracy > 0)
   float iaq = bme.IAQ; // Calculated IAQ as a percentage from 0-100% representing "bad" to "good"
 }
 ```
-IAQ will not be immediately available on sensor startup and/or after soft resets. It takes time for the gas resistance to stabilize and for the tracking logic to properly calculate a mean high value for resistance. After approximately 30 seconds, a tentative IAQ will be available with low accuracy. At approximately 5 minutes, the burn-in process should be completed and the confidence of the calculation will improve accordingly. The longer the sensor is running, the more stable the readings will become. Over long time periods, the gas resistance ceiling may decay, and the tracking logic attempts to compensate for that to maintain IAQ accuracy. 
+IAQ will not be immediately available on sensor startup and/or after soft resets. It takes time for the gas resistance to stabilize and for the tracking logic to properly calculate a mean high value for resistance. After approximately 30 seconds, a tentative IAQ will be available with low accuracy. At approximately 5 minutes, the burn-in process should be completed and the confidence of the calculation will improve accordingly. The longer the sensor is running, the more stable the readings will become. Over long time periods, the gas resistance ceiling will typically decay, and the tracking logic attempts to compensate for such changes to maintain IAQ accuracy. 
 
 When accuracy = 0 the IAQ reading is meaningless and should not be used. It defaults to 50% but that value is arbitrary and should not be trusted. Higher accuracy levels depend simply on time and on the range of gas resistance ceiling values within the tracking algorithm.
 

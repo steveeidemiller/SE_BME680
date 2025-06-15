@@ -20,7 +20,7 @@ class SE_BME680 : public Adafruit_BME680
   private:
 
     // Temperature offset in degrees Celsius, added to the raw temperature reading and used to compensate humidity and dew point calculations
-    float temperature_offset = -1.5F;
+    float temperature_offset = -2.00F;
 
     // Array of compensated gas readings used to calculate gas_ceiling
     double gas_calibration_data[GAS_CALIBRATION_DATA_POINTS];
