@@ -16,6 +16,8 @@ The BME680 includes a MOX sensor that can be used to measure the presence of vol
 
 IAQ in this library is reported as a percentage from 0-100%, representing "bad" to "good" air quality. BSEC also offers VOC and CO2 calculations. However, those calculations are derived from the same MOX resistance value and are therefore strongly correlated to the overall IAQ itself. When plotted on the same graph, all three calculations end up looking identical differing only in scale and units. This library does not attempt to replicate those additional calculations for that reason and simply focuses on the main IAQ.
 
+IAQ logic depends on tracking the range of gas resistance values to determine where current readings fit within a measured range over time. However, the measured gas resistance of the BME680 is heavily dependent on the polling interval. More frequent polling results in higher measured resistance values. Therefore, it is important to ensure consistent polling intervals to keep the measured gas resistance values stable and consistent. If the polling interval changes by too much, then the measured gas resistance will fluctuate and will likely impact the IAQ calculation. A sudden increase in timings between `performReading()` requests will cause a sudden drop in calculated IAQ.
+
 ## Credits
 The IAQ formula and algorithm in this library is a direct port of the Python code found at:<br/>
 https://github.com/thstielow/raspi-bme680-iaq<br/>
@@ -54,14 +56,14 @@ if (bme.IAQ_accuracy > 0)
   float iaq = bme.IAQ; // Calculated IAQ as a percentage from 0-100% representing "bad" to "good"
 }
 ```
-IAQ will not be immediately available on sensor startup and/or after soft resets. It takes time for the gas resistance to stabilize and for the tracking logic to properly calculate a mean high value for resistance. After approximately 30 seconds, a tentative IAQ will be available with low accuracy. At approximately 5 minutes, the burn-in process should be completed and the confidence of the calculation will improve accordingly. The longer the sensor is running, the more stable the readings will become. Over long time periods, the gas resistance ceiling will typically decay, and the tracking logic attempts to compensate for such changes to maintain IAQ accuracy. 
+IAQ will not be immediately available on sensor startup and/or after soft resets. It takes time for the gas resistance to stabilize and for the tracking logic to properly calculate a mean high value for resistance. After approximately 30 seconds of 1-second polling, a tentative IAQ will be available with low accuracy. At approximately 5 minutes of 1-second polling, the burn-in process should be completed and the confidence of the calculation will improve accordingly. Longer polling intervals will cause the first two stages to take more time. The longer the sensor is running, the more stable the readings will become. Over long time periods, the gas resistance ceiling will typically decay, and the tracking logic attempts to compensate for such changes to maintain IAQ accuracy.
 
 When accuracy = 0 the IAQ reading is meaningless and should not be used. It defaults to 50% but that value is arbitrary and should not be trusted. Higher accuracy levels depend simply on time and on the range of gas resistance ceiling values within the tracking algorithm.
 
 If the sensor is started up in an environment with high VOC contaminants, the tracking algorithm should settle along a lower gas resistance boundary. That lower boundary is also enforced as the gas resistance decays over time. This logic helps prevent self-calibration from reporting contaminated environments as "good", either initially or after prolonged exposure, but should not be relied upon as any kind of safety measure. 
 
 ## IMPORTANT
-The gas resistance tracking and default slope factor are heavily dependent on polling frequency. It is strongly recommended that the sensor is polled roughly every second to ensure the best possible IAQ accuracy. 
+The gas resistance tracking and default slope factor are heavily dependent on polling frequency. It is recommended that the sensor is polled with consistent timings to ensure the best possible IAQ accuracy.
 
 ## Example Code
 An example sketch is provided and can be found under "File->Examples->SE BME680 Library->se_bme680_test" in the Arduino IDE.

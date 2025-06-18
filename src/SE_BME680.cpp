@@ -35,6 +35,7 @@ void SE_BME680::initialize(void)
   IAQ = 50.0F; // Default to 50% (neutral air quality) while accuracy is 0, which is the default "unreliable" accuracy level before any readings are taken
   IAQ_accuracy = 0; // Default to unreliable accuracy
   sensor_uptime = 0; // Reset uptime tracking
+  gas_stage_0_last_low = -1; // Reset gas stage 0 initialization tracking
 
   // Reset the gas calibration timer
   gas_calibration_timer = millis();
@@ -137,26 +138,55 @@ void SE_BME680::calculateIAQ()
   // Update gas calibration data with the compensated gas resistance value
   switch (gas_calibration_stage)
   {
-    case 0: // Initialization stage. Gas readings are simply ignored until the sensor stabilizes.
+    // Initialization stage. Gas readings are simply ignored until the sensor stabilizes, which is when gas resistance values stop falling and start posting higher lows. A minimum initialization time is also enforced.
+    case 0:
       if (millis() - gas_calibration_timer >= gas_calibration_init_time)
       {
-        gas_calibration_stage = 1; // Move to burn-in stage
+        if (gas_stage_0_last_low == -1)
+        {
+          // Initialization
+          gas_stage_0_last_low = gas_resistance;
+          gas_stage_0_low_count = 0; // No higher lows yet
+        }
+        else if (gas_resistance < gas_stage_0_last_low)
+        {
+          // If the gas resistance is lower than the last low, then update the last low and reset the higher lows count
+          gas_stage_0_last_low = gas_resistance;
+          gas_stage_0_low_count = 0; // Reset higher lows count
+        }
+        else if (gas_resistance > gas_stage_0_last_low)
+        {
+          // If the gas resistance is higher than the last low, increment the higher lows count. Stabilization is becoming apparent.
+          gas_stage_0_low_count++;
+
+          // If gas resistance has posted a few higher lows, then assume the sensor has stabilized and move to the burn-in stage
+          if (gas_stage_0_low_count >= 3)
+          {
+            // Initialization stage is complete, so move to the burn-in stage
+            gas_calibration_timer = millis(); // Reset the calibration timer to start the burn-in stage
+            gas_calibration_stage = 1; // Move to burn-in stage
+          }
+        }
       }
       break;
 
-    case 1: // Burn-in stage. The sensor is expected to start mildly stabilizing and gas ceiling values can now be collected.
-      if (millis() - gas_calibration_timer < gas_calibration_burnin_time)
+    // Burn-in stage. The sensor is expected to be stabilizing and gas ceiling values can now be collected. Burn-in stage will last until the calbiration array is fully populated AND the minimum burn-in time has elapsed.
+    case 1:
+      if (millis() - gas_calibration_timer < gas_calibration_burnin_time || gas_calibration_data[GAS_CALIBRATION_DATA_POINTS - 1] == 0)
       {
         // Fill the calibration array first, and then continue to update the array by replacing the smallest value. This effectively collects the highest witnessed compensated gas resistance values during burn-in.
         updateGasCalibration(max(compensated_gas_r, compensated_gas_r_min), true); // Limit calibration data to the compensated minimum gas resistance limit
       }
       else
       {
+        // Burn-in stage is complete, so move to the normal operation stage
+        gas_calibration_timer = millis(); // Reset the calibration timer to start normal operation stage
         gas_calibration_stage = 2; // Move to normal operation stage
       }
       break;
 
-    case 2: // Normal operation stage
+    // Normal operation stage. The sensor is expected to be stable and any new "high" gas ceiling values can be collected. Decay intervals will force updates to the gas calibration data to account for sensor drift and changes in the environment over time.
+    case 2:
       if (compensated_gas_r > compensated_gas_r_min)
       {
         if (compensated_gas_r > gas_ceiling)
@@ -201,29 +231,17 @@ void SE_BME680::calculateIAQ()
   }
 }
 
-// Set temperature compensation in degrees Celsius
-void SE_BME680::setTemperatureCompensation(float degreesC)
+// Begin a reading from the BME680 sensor
+uint32_t SE_BME680::beginReading(void)
 {
-  temperature_offset = degreesC;
-}
-
-// Set temperature compensation in degrees Fahrenheit
-void SE_BME680::setTemperatureCompensationF(float degreesF)
-{
-  setTemperatureCompensation(degreesF * 5.0F / 9.0F); // Convert Fahrenheit to Celsius
+  // Proxy to base class
+  return Adafruit_BME680::beginReading();
 }
 
 // Perform a reading from the BME680 sensor
 bool SE_BME680::performReading(void)
 {
   return endReading();
-}
-
-// Begin a reading from the BME680 sensor
-uint32_t SE_BME680::beginReading(void)
-{
-  // Proxy to base class
-  return Adafruit_BME680::beginReading();
 }
 
 // End a reading from the BME680 sensor
@@ -285,18 +303,6 @@ float SE_BME680::readIAQ(void)
   return IAQ;
 }
 
-// Get IAQ accuracy
-int SE_BME680::getIAQAccuracy(void)
-{
-  return IAQ_accuracy;
-}
-
-// Get the current gas calibration stage
-int SE_BME680::getGasCalibrationStage(void)
-{
-  return gas_calibration_stage;
-}
-
 // Set gas resistance compensation slope factor
 bool SE_BME680::setGasCompensationSlopeFactor(double slopeFactor)
 {
@@ -318,7 +324,7 @@ bool SE_BME680::setUpperGasResistanceLimits(uint32_t minLimit, uint32_t maxLimit
   return false; // Invalid limits
 }
 
-// Set timings for gas calibration stages
+// Set minimum timings for gas calibration stages
 bool SE_BME680::setGasCalibrationTimings(int initTime, int burninTime, int decayTime)
 {
   if (initTime > 0 && burninTime >= initTime && decayTime >= burninTime)

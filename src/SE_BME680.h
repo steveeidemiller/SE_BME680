@@ -40,16 +40,20 @@ class SE_BME680 : public Adafruit_BME680
     // Current stage of gas calibration: 0 = initialization, 1 = burn-in, 2 = normal operation
     int gas_calibration_stage = 0;
 
+    // Used to track gas resistance during the initialization stage. When gas resistance stops dropping after startup, then initialization is complete and the burn-in stage starts.
+    double gas_stage_0_last_low = -1;
+    int gas_stage_0_low_count = 0;
+
     // Ignore any values lower than this for the purposes of calculating the gas ceiling
     uint32_t gas_resistance_limit_min = 50000;
 
     // Ignore any values higher than this for the purposes of calculating the gas ceiling, which is important if the sensor is started in a low air quality environment
     uint32_t gas_resistance_limit_max = 225000;
 
-    // Stage 0: Initialization time in milliseconds (30 seconds). The gas resistance will not be stable yet, but ceiling tracking can start and a low accuracy IAQ can be calculated. Resistance values prior to this time are very unstable.
+    // Stage 0: Minimum initialization time in milliseconds (30 seconds). The gas resistance will not be stable yet, but ceiling tracking can start and a low accuracy IAQ can be calculated. Resistance values prior to this time are very unstable.
     int gas_calibration_init_time = 30*1000;
 
-    // Stage 1: Burn-in time in milliseconds (5 minutes). After this time, the gas resistance is expected to be moderately stable and a more accurate IAQ can be calculated.
+    // Stage 1: Minimum burn-in time in milliseconds (5 minutes). After this time, the gas resistance is expected to be moderately stable and a more accurate IAQ can be calculated.
     int gas_calibration_burnin_time = 5*60*1000;
 
     // Stage 2: Time in milliseconds (30 minutes) after which the gas calibration data decays and the gas ceiling needs to be recalculated. This is to account for sensor drift and changes in the environment.
@@ -136,14 +140,14 @@ class SE_BME680 : public Adafruit_BME680
     *  @param  degreesC
     *          Temperature offset in degrees Celsius to be added to the raw temperature reading and used to compensate humidity and dew point calculations
     */
-    void setTemperatureCompensation(float degreesC);
+    void setTemperatureCompensation(float degreesC) { temperature_offset = degreesC; }
 
     /*!
     *  @brief  Set temperature compensation in degrees Fahrenheit
     *  @param  degreesF
     *          Temperature offset in degrees Fahrenheit to be added to the raw temperature reading and used to compensate humidity and dew point calculations
     */
-    void setTemperatureCompensationF(float degreesF);
+    void setTemperatureCompensationF(float degreesF) { setTemperatureCompensation(degreesF * 5.0F / 9.0F); } // Convert Fahrenheit to Celsius
 
     /*!
     *  @brief  Perform a reading from the BME680 sensor
@@ -191,7 +195,7 @@ class SE_BME680 : public Adafruit_BME680
     *  @brief Get the estimated accuracy of the IAQ reading
     *  @return 0 = unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
     */
-    int getIAQAccuracy(void);
+    int getIAQAccuracy(void) { return IAQ_accuracy; }
 
     /*!
     *  @brief Get the current gas calibration stage
@@ -200,8 +204,14 @@ class SE_BME680 : public Adafruit_BME680
     *           1 = Burn-in stage (first 5 minutes), where gas resistance is expected to be moderately stable and a low accuracy IAQ can be calculated
     *           2 = Normal operation stage (after first 5 minutes)
     */
-    int getGasCalibrationStage(void);
+    int getGasCalibrationStage(void) { return gas_calibration_stage; }
 
+    /*!
+    *  @brief Get the current range of gas ceiling calibration data points as a percentage of the maximum value in the gas calibration data array. The smaller the range percentage, the more stable the gas readings are.
+    *  @return The current gas resistance limit in ohms, which is the maximum gas resistance value used for gas ceiling calibration
+    */
+    double getGasCalibrationRange(void) { return gas_calibration_range; }
+  
     /*!
     *  @brief Set gas resistance compensation slope factor
     *  @param slopeFactor
@@ -219,13 +229,13 @@ class SE_BME680 : public Adafruit_BME680
     bool setUpperGasResistanceLimits(uint32_t minLimit = 30000, uint32_t maxLimit = 225000);
 
     /*!
-    *  @brief Set timings for gas calibration stages
+    *  @brief Set minimum timings for gas calibration stages. Each stage may take longer depending on the polling frequency and the environment.
     *  @param initTime
-    *         The time in milliseconds for the initialization stage (default 30 seconds)
+    *         Minimum time in milliseconds for the initialization stage (default 30 seconds at 1-second polling frequency)
     *  @param burninTime
-    *         The time in milliseconds for the burn-in stage (default 5 minutes)
+    *         Minimum time in milliseconds for the burn-in stage (default 5 minutes at 1-second polling frequency)
     *  @param decayTime
-    *         The time in milliseconds for the decay stage (default 30 minutes)
+    *         Decay time interval in milliseconds (default 30 minutes at 1-second polling frequency)
     * @return True if the timings were set successfully, false if the timings are invalid
     *         (e.g., if initTime is not less than burninTime, or burninTime is not less than decayTime)
     */

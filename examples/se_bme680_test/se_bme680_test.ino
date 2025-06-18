@@ -24,7 +24,7 @@ void setup()
   }
 
   // Uncomment this line to set a temperature compensation, which is also used to compensate humidity
-  //bme.setTemperatureCompensation(-1.75F); // Celsius offset as type "float"
+  //bme.setTemperatureCompensation(-2.00F); // Celsius offset as type "float"
 
   /*
   // Set up the sensor. These settings are the default ones, but you can uncomment this code block and adjust them as needed.
