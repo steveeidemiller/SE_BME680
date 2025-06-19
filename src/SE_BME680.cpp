@@ -30,12 +30,12 @@ void SE_BME680::initialize(void)
   memset(gas_calibration_data, 0, sizeof(gas_calibration_data)); // Initialize gas tracking array to zeros
   gas_calibration_stage = 0; // Default to initialization stage
   gas_calibration_data_index = 0; // Default to the first entry in the gas calibration data array
-  gas_calibration_range = 0; // No data yet, so no range
+  gas_calibration_range = 1.0F; // No data yet, so set range to 100% (lowest accuracy, zero is 100% of zero)
   gas_ceiling = 0; // Default to zero gas ceiling
   IAQ = 50.0F; // Default to 50% (neutral air quality) while accuracy is 0, which is the default "unreliable" accuracy level before any readings are taken
   IAQ_accuracy = 0; // Default to unreliable accuracy
   sensor_uptime = 0; // Reset uptime tracking
-  gas_stage_0_last_low = -1; // Reset gas stage 0 initialization tracking
+  gas_stage_0_last_low = 0; // Reset gas stage 0 initialization tracking
 
   // Reset the gas calibration timer
   gas_calibration_timer = millis();
@@ -95,7 +95,7 @@ void SE_BME680::updateGasCalibration(double compensated_gas, bool replaceSmalles
     if (calMax > 0)
     {
       // Calculate the min/max range as a percentage of the maximum value        
-      gas_calibration_range = (calMax - calMin) / calMax;
+      gas_calibration_range = (float)((calMax - calMin) / calMax);
     }
     mean = sum / (double)count;
     if (!isnan(mean))
@@ -142,7 +142,7 @@ void SE_BME680::calculateIAQ()
     case 0:
       if (millis() - gas_calibration_timer >= gas_calibration_init_time)
       {
-        if (gas_stage_0_last_low == -1)
+        if (gas_stage_0_last_low == 0)
         {
           // Initialization
           gas_stage_0_last_low = gas_resistance;
@@ -192,7 +192,7 @@ void SE_BME680::calculateIAQ()
         if (compensated_gas_r > gas_ceiling)
         {
           // Integrate new higher gas readings into the gas calibration data array to establish a better gas ceiling for "good" air quality
-          updateGasCalibration(compensated_gas_r, false); // Adapt ongoing average gas ceiling based on new high readings
+          updateGasCalibration(compensated_gas_r, true); // Adapt ongoing average gas ceiling based on new high readings
         }
         else if (millis() - gas_calibration_timer >= gas_calibration_decay_time)
         {
@@ -224,9 +224,9 @@ void SE_BME680::calculateIAQ()
       break;
     case 2: // Normal operation stage
       IAQ_accuracy = 1; // Low accuracy by default
-      if (gas_calibration_range < 0.075) IAQ_accuracy = 2; // Moderate accuracy
-      if (gas_calibration_range < 0.035 && sensor_uptime >= 2) IAQ_accuracy = 3; // High accuracy, requires at least several decay intervals of sensor uptime in the current environment
-      if (gas_calibration_range < 0.02 && sensor_uptime >= 100) IAQ_accuracy = 4; // Very high accuracy, which typicall requires days of sensor uptime in the current environment
+      if (gas_calibration_range < 0.075F) IAQ_accuracy = 2; // Moderate accuracy
+      if (gas_calibration_range < 0.035F && sensor_uptime >= 2)   IAQ_accuracy = 3; // High accuracy, requires at least several decay intervals of sensor uptime in the current environment
+      if (gas_calibration_range < 0.020F && sensor_uptime >= 100) IAQ_accuracy = 4; // Very high accuracy, which typicall requires days of sensor uptime in the current environment
       break;
   }
 }

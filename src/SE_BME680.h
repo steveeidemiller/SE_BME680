@@ -32,7 +32,7 @@ class SE_BME680 : public Adafruit_BME680
     double gas_ceiling = 0;
 
     // Range of compensated gas resistance values used for gas calibration, calculated as a percentage of the maximum value in gas_calibration_data[]
-    double gas_calibration_range = 0;
+    float gas_calibration_range = 1.00F; // Default to 100% (lowest accuracy, zero is 100% of zero)
 
     // Timer for gas calibration stages, used to track sensor stabilization
     unsigned long gas_calibration_timer = 0;
@@ -41,7 +41,7 @@ class SE_BME680 : public Adafruit_BME680
     int gas_calibration_stage = 0;
 
     // Used to track gas resistance during the initialization stage. When gas resistance stops dropping after startup, then initialization is complete and the burn-in stage starts.
-    double gas_stage_0_last_low = -1;
+    uint32_t gas_stage_0_last_low = 0;
     int gas_stage_0_low_count = 0;
 
     // Ignore any values lower than this for the purposes of calculating the gas ceiling
@@ -207,10 +207,10 @@ class SE_BME680 : public Adafruit_BME680
     int getGasCalibrationStage(void) { return gas_calibration_stage; }
 
     /*!
-    *  @brief Get the current range of gas ceiling calibration data points as a percentage of the maximum value in the gas calibration data array. The smaller the range percentage, the more stable the gas readings are.
-    *  @return The current gas resistance limit in ohms, which is the maximum gas resistance value used for gas ceiling calibration
+    *  @brief Get the current accuracy of gas calibration as a percentage. The higher the cailbration accuracy, the more stable the IAQ calculation is.
+    *  @return Current accuracy as a percentage (0-100%, bad to good)
     */
-    double getGasCalibrationRange(void) { return gas_calibration_range; }
+    float getGasCalibrationAccuracy(void) { return (1.0F - gas_calibration_range) * 100.0F; } // Invert the rage percentage to get accuracy percentage
   
     /*!
     *  @brief Set gas resistance compensation slope factor

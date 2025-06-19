@@ -1,5 +1,5 @@
 # SE BME680 Library
-This is an extension of the [Adafruit BME680 Library](https://github.com/adafruit/Adafruit_BME680) to add temperature compensation, humidity compensation, a dew point calculation, and a simple IAQ (indoor air quality) calculation.
+This is an extension of the [Adafruit BME680 Library](https://github.com/adafruit/Adafruit_BME680) to add temperature compensation, humidity compensation, a dew point calculation, and a basic IAQ (indoor air quality) calculation.
 
 ![Example output](assets/screenshot.png)
 
@@ -11,12 +11,12 @@ The default temperature offset in this library is a good starting point. Fine-tu
 ## Dew Point
 A dew point calculation is also provided and is based on the [Magnus formula](https://en.wikipedia.org/wiki/Dew_point#Calculating_the_dew_point). It is derived from the raw temperature and humidity measurements. Since the humidity compensation and dew point calculations are both based on Magnus transformations, there is no "compensated" dew point calculation. Dew point and "compensated" dew point would end up being identical values.
 
-## IAQ
-The BME680 includes a MOX sensor that can be used to measure the presence of volatile organic compounds (VOC's) in the air. It only provides a single resistance value, so it has no selectivity for different gasses or alcohols. And the sensor does drift over time, so it's not an absolute reference. But it is very responsive and can be used to calculate a relative air quality index. Bosch provides the closed-source BSEC library for this purpose. This library makes no attempt to emulate the BSEC calculations, complexity or accuracy, but instead offers a reasonable approximation using much simpler logic and open-source code.
+## IAQ (Indoor Air Quality)
+The BME680 includes a MOX sensor that can be used to measure the presence of volatile organic compounds (VOC's) in the air. It only provides a single resistance value so it has little to no selectivity for different gasses or alcohols. The sensor drifts over time as well, making it less suitable as an absolute reference. But it is very responsive and can be used to calculate a relative air quality index. Bosch provides the closed-source BSEC library for this purpose. This library makes no attempt to emulate the BSEC calculations, complexity or accuracy, but instead offers a reasonable approximation using much simpler logic and open-source code.
 
 IAQ in this library is reported as a percentage from 0-100%, representing "bad" to "good" air quality. BSEC also offers VOC and CO2 calculations. However, those calculations are derived from the same MOX resistance value and are therefore strongly correlated to the overall IAQ itself. When plotted on the same graph, all three calculations end up looking identical differing only in scale and units. This library does not attempt to replicate those additional calculations for that reason and simply focuses on the main IAQ.
 
-IAQ logic depends on tracking the range of gas resistance values to determine where current readings fit within a measured range over time. However, the measured gas resistance of the BME680 is heavily dependent on the polling interval. More frequent polling results in higher measured resistance values. Therefore, it is important to ensure consistent polling intervals to keep the measured gas resistance values stable and consistent. If the polling interval changes by too much, then the measured gas resistance will fluctuate and will likely impact the IAQ calculation. A sudden increase in timings between `performReading()` requests will cause a sudden drop in calculated IAQ.
+IAQ logic depends on tracking the range of gas resistance values to determine where current readings fit within a measured range over time. However, the measured gas resistance of the BME680 is heavily dependent on the polling interval. More frequent polling results in higher measured resistance values. Therefore, it is important to ensure consistent polling intervals to keep the measured gas resistance values stable and consistent. If the polling interval changes by too much, then the measured gas resistance will fluctuate and will likely impact the IAQ calculation. For example, a sudden increase in timings between `performReading()` requests will cause a corresponding sudden drop in calculated IAQ.
 
 ## Credits
 The IAQ formula and algorithm in this library is a direct port of the Python code found at:<br/>
