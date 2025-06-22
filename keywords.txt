@@ -3,10 +3,12 @@
 
 # Classes and datatypes are KEYWORD1
 SE_BME680	KEYWORD1
+DonchainAverage	KEYWORD1
 
 # Methods and functions are KEYWORD2
 setTemperatureCompensation	KEYWORD2
 setTemperatureCompensationF	KEYWORD2
+setDonchainSmoothing	KEYWORD2
 performReading	KEYWORD2
 beginReading	KEYWORD2
 endReading	KEYWORD2

@@ -16,14 +16,38 @@ The BME680 includes a MOX sensor that can be used to measure the presence of vol
 
 IAQ in this library is reported as a percentage from 0-100%, representing "bad" to "good" air quality. BSEC also offers VOC and CO2 calculations. However, those calculations are derived from the same MOX resistance value and are therefore strongly correlated to the overall IAQ itself. When plotted on the same graph, all three calculations end up looking identical differing only in scale and units. This library does not attempt to replicate those additional calculations for that reason and simply focuses on the main IAQ.
 
-IAQ logic depends on tracking the range of gas resistance values to determine where current readings fit within a measured range over time. However, the measured gas resistance of the BME680 is heavily dependent on the polling interval. More frequent polling results in higher measured resistance values. Therefore, it is important to ensure consistent polling intervals to keep the measured gas resistance values stable and consistent. If the polling interval changes by too much, then the measured gas resistance will fluctuate and will likely impact the IAQ calculation. For example, a sudden increase in timings between `performReading()` requests will cause a corresponding sudden drop in calculated IAQ.
+### IMPORTANT
+IAQ logic depends on tracking the range of gas resistance values to determine where current readings fit within a measured range over time. However, the measured gas resistance of the BME680 is HEAVILY dependent on the polling interval. The tracking logic can automatically adjust to reasonable polling intervals but cannot compensate for variations once a polling cadence has been established. Therefore, it is IMPORTANT to ensure consistent polling intervals to keep the measured gas resistance values stable for the best possible IAQ calculations.
+
+The suggested approach is to use a timer:
+```
+unsigned long lastPolled = 0, clock = 0;
+while (true)
+{
+  clock = millis();
+  if (clock - lastPolled >= 6000) // Poll every 6000ms (6 seconds), 10x per minute. 6000 is an arbitrary value for demonstration purposes only.
+  {
+    // Reset the timer
+    lastPolled = clock;
+
+    // Poll the BME680 first, before doing other things, to keep the timing as consistent and accurate as possible
+    if (bme680.performReading()) // Takes about 370ms
+    {
+      measureEnvironmentals();
+    }
+
+    // Do other things here, taking care to ensure that these processes do not exceed the interval specified above (6000ms in this example)
+  }
+  delay(25); // Non-blocking delay on ESP32, in milliseconds
+}
+```
 
 ## Credits
 The IAQ formula and algorithm in this library is a direct port of the Python code found at:<br/>
 https://github.com/thstielow/raspi-bme680-iaq<br/>
 https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/15<br/>
 
-Full credit for the IAQ feature in this library goes to that project and the extensive research done by its author. The only modifications here are attempts to enhance the gas resistance tracking and stabilization approach, but the equations are the same.
+Full credit for the IAQ feature in this library goes to that project and the extensive research done by its author. The only modifications here are attempts to enhance the gas resistance tracking and stabilization approaches, but the equations are the same.
 
 The author's formula includes a slope factor that was determined through experimentation. Fine-tuning the air quality calculation will require duplicating their approach to determine a more accurate slope factor for a specific BME680 sensor and target environment. 
 
@@ -62,8 +86,24 @@ When accuracy = 0 the IAQ reading is meaningless and should not be used. It defa
 
 If the sensor is started up in an environment with high VOC contaminants, the tracking algorithm should settle along a lower gas resistance boundary. That lower boundary is also enforced as the gas resistance decays over time. This logic helps prevent self-calibration from reporting contaminated environments as "good", either initially or after prolonged exposure, but should not be relied upon as any kind of safety measure. 
 
-## IMPORTANT
-The gas resistance tracking and default slope factor are heavily dependent on polling frequency. It is recommended that the sensor is polled with consistent timings to ensure the best possible IAQ accuracy.
+## Donchian Smoothing (Optional)
+Gas resistance is heavily influenced by ambient humidity. The IAQ calculation also references humidity, so oscillations in humidity have a compound effect on reported IAQ. Oscillations in humidity can come from cycling of air conditioners, heaters, etc. Temperature is also used in the IAQ calcuation and can have similar oscillations. The net result is an IAQ that exhibits notable oscillations even when air quality may not have actually changed significantly.
+
+Donchian Channels can be used to dampen the oscillations by establishing a min/max range over time within which the oscillations are contained. These min/max "channels" are applied to gas resistance, humidity and temperature measurements. The channel center value of `(min+max)/2` is then used to calculate the IAQ. If an appropriate time period is selected, the channels will completely contain any measured oscillations and prevent them from translating to IAQ. The effect is a "smoothing" of the IAQ into a very stable metric.
+
+Even though the Donchian Channel approach introduces computational "lag", it is still very responsive when any of the three values break out of the established min/max channel. If notable changes to air quality start to manifest, then gas resistance would likely break out of its channel and influence reported IAQ rather quickly, even if temperature and humidity remain within their channels.
+
+This feature is optional and must be explicity enabled. Also, for it to work well, a value should be selected that compensates for any observed measurement oscillations. Data collection and experimentation will be required to fine-tune an appropriate value. Enable the feature in `setup()` as follows:
+```
+bme.setDonchianSmoothing(true, 200);
+```
+The demonstration value of 200 is a reasonable starting point. The parameter refers to the number of polling cycles. So, if polling is done every 6000ms (6 seconds), then the smoothing period is 6 X 200 = 1200 seconds of real time, or about 20 minutes. Extend the value experimentally until IAQ oscillations just start to disappear or are reduced to very low levels.
+
+TODO: before and after chart snapshots with thumbnails
+
+Additional references:<br/>
+https://www.investopedia.com/terms/d/donchianchannels.asp<br/>
+https://en.wikipedia.org/wiki/Donchian_channel<br/>
 
 ## Example Code
 An example sketch is provided and can be found under "File->Examples->SE BME680 Library->se_bme680_test" in the Arduino IDE.

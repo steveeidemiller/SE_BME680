@@ -41,6 +41,18 @@ void SE_BME680::initialize(void)
   gas_calibration_timer = millis();
 }
 
+// Enable and initialize Donchian smoothing
+void SE_BME680::setDonchianSmoothing(bool enabled, int periods)
+{
+  if (enabled && periods >= 2)
+  {
+    donchian_enabled = enabled;
+    temperature_donchian = new DonchianAverage(periods);
+    humidity_donchian = new DonchianAverage(periods);
+    gas_resistance_donchian = new DonchianAverage(periods);
+  }
+}
+
 // Update gas calibration data with a new compensated gas reading, calculate the arithmetic mean of the gas calibration data, and update the gas ceiling value
 void SE_BME680::updateGasCalibration(double compensated_gas, bool replaceSmallest)
 {
@@ -123,15 +135,32 @@ void SE_BME680::calculateIAQ()
     return;
   }
 
+  // Smooth some readings using Donchian smoothing, if enabled
+  float temperature_smoothed = temperature; // Raw temperature reading
+  float humidity_smoothed = humidity; // Raw humidity reading
+  uint32_t gas_resistance_smoothed = gas_resistance; // Raw gas resistance reading
+  if (donchian_enabled && gas_calibration_stage >= 1) // Donchian smoothing is only applied after the initialization stage has finished to avoid spurious gas readings inflating the Donchian min/max range
+  {
+    // Track the current raw readings
+    temperature_donchian->track(temperature);
+    humidity_donchian->track(humidity);
+    gas_resistance_donchian->track((float)gas_resistance);
+
+    // Use the smoothed values
+    temperature_smoothed = temperature_donchian->average;
+    humidity_smoothed = humidity_donchian->average;
+    gas_resistance_smoothed = (uint32_t)round(gas_resistance_donchian->average);
+  }
+
   // Calculate the saturation water vapor density of air at the current temperature (°C) in kg/m^3, which is equal to a relative humidity of 100% at the current temperature
-  double svd = (6.112 * 100.0 * exp(17.625 * temperature / (243.04 + temperature))) / (461.52 * (temperature + 273.15));
+  double svd = (6.112 * 100.0 * exp(17.625 * temperature_smoothed / (243.04 + temperature_smoothed))) / (461.52 * (temperature_smoothed + 273.15));
 
   // Calculate absolute humidity using the saturation water density
-  double hum_abs = humidity * 10 * svd;
+  double hum_abs = humidity_smoothed * 10 * svd;
 
   // Compensate exponential impact of humidity on resistance
   double factor = exp(iaq_slope_factor * hum_abs); // Exponential factor based on humidity
-  double compensated_gas_r = (double)gas_resistance * factor; // Compensated gas resistance based on the humidity factor
+  double compensated_gas_r = (double)gas_resistance_smoothed * factor; // Compensated gas resistance based on the humidity factor
   double compensated_gas_r_min = (double)gas_resistance_limit_min * factor; // Compensated minimum gas resistance limit based on the humidity factor, important if the sensor is started in a low air quality environment
   if (isnan(compensated_gas_r) || isnan(compensated_gas_r_min)) return;
 

@@ -26,6 +26,9 @@ void setup()
   // Uncomment this line to set a temperature compensation, which is also used to compensate humidity
   //bme.setTemperatureCompensation(-2.00F); // Celsius offset as type "float"
 
+  // Uncomment this line to enable Donchian smoothing for the IAQ calculation, which can be used to smooth out oscillations due to the cycling of air conditioners, heaters, etc.
+  //bme.setDonchianSmoothing(true, 200); // Enable Donchian smoothing with 200 periods (samples) for humidity and gas resistance readings
+
   /*
   // Set up the sensor. These settings are the default ones, but you can uncomment this code block and adjust them as needed.
   bme.setTemperatureOversampling(BME680_OS_8X);

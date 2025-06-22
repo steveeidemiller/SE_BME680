@@ -3,7 +3,7 @@
  * @brief Extension of the Adafruit BME680 library to add temperature compensation, humidity compensation, a dew point calculation, and a simple IAQ (indoor air quality) calculation
  */
 
- #ifndef __SE_BME680_H__
+#ifndef __SE_BME680_H__
 #define __SE_BME680_H__
 
 #include <Arduino.h>
@@ -12,6 +12,7 @@
 #include <Adafruit_SPIDevice.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME680.h>
+#include <DonchianAverage.h>
 
 #define  GAS_CALIBRATION_DATA_POINTS 100
 
@@ -21,6 +22,14 @@ class SE_BME680 : public Adafruit_BME680
 
     // Temperature offset in degrees Celsius, added to the raw temperature reading and used to compensate humidity and dew point calculations
     float temperature_offset = -2.00F;
+
+    // Whether Donchian smoothing is enabled for compensated humidity and gas resistance readings used in the IAQ calculation
+    bool donchian_enabled = false;
+
+    // Smoothing for sensor readings used in the IAQ calculation, if enabled
+    DonchianAverage* temperature_donchian = nullptr;    // Smoothing for the raw temperature
+    DonchianAverage* humidity_donchian = nullptr;       // Smoothing for the raw humidity
+    DonchianAverage* gas_resistance_donchian = nullptr; // Smoothing for the raw gas
 
     // Array of compensated gas readings used to calculate gas_ceiling
     double gas_calibration_data[GAS_CALIBRATION_DATA_POINTS];
@@ -149,6 +158,16 @@ class SE_BME680 : public Adafruit_BME680
     */
     void setTemperatureCompensationF(float degreesF) { setTemperatureCompensation(degreesF * 5.0F / 9.0F); } // Convert Fahrenheit to Celsius
 
+    /*!
+    *  @brief  Enable or disable Donchian smoothing for the IAQ calculation. Should be called before performing any readings.
+    *  @param  enabled
+    *          True to enable Donchian smoothing, false to disable it
+    *  @param  periods
+    *          Number of periods to use for Donchian smoothing (at least 2, likely 200 or so). This is the number of samples to consider for the min/max range in the smoothing calculation.
+    *          A value should be selected that compensates for observed oscillations in humidity readings due to the cycling of air conditioners, heaters, etc.
+    */
+    void setDonchianSmoothing(bool enabled, int periods = 200);
+  
     /*!
     *  @brief  Perform a reading from the BME680 sensor
     *  @return True if the reading was successful, false otherwise
