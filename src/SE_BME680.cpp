@@ -42,14 +42,14 @@ void SE_BME680::initialize(void)
 }
 
 // Enable and initialize Donchian smoothing
-void SE_BME680::setDonchianSmoothing(bool enabled, int periods)
+void SE_BME680::setDonchianSmoothing(bool enabled, int periods, float temperatureRangeLimitMax, float humidityRangeLimitMax, float gasResistanceRangeLimitMax)
 {
   if (enabled && periods >= 2)
   {
     donchian_enabled = enabled;
-    temperature_donchian = new DonchianAverage(periods);
-    humidity_donchian = new DonchianAverage(periods);
-    gas_resistance_donchian = new DonchianAverage(periods);
+    temperature_donchian = new DonchianAverage(periods, temperatureRangeLimitMax);
+    humidity_donchian = new DonchianAverage(periods, humidityRangeLimitMax);
+    gas_resistance_donchian = new DonchianAverage(periods, gasResistanceRangeLimitMax);
   }
 }
 

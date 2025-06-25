@@ -20,7 +20,7 @@ IAQ in this library is reported as a percentage from 0-100%, representing "bad" 
 IAQ logic depends on tracking the range of gas resistance values to determine where current readings fit within a measured range over time. However, the measured gas resistance of the BME680 is HEAVILY dependent on the polling interval. The tracking logic can automatically adjust to reasonable polling intervals but cannot compensate for variations once a polling cadence has been established. Therefore, it is IMPORTANT to ensure consistent polling intervals to keep the measured gas resistance values stable for the best possible IAQ calculations.
 
 The suggested approach is to use a timer:
-```
+```cpp
 unsigned long lastPolled = 0, clock = 0;
 while (true)
 {
@@ -53,7 +53,7 @@ The author's formula includes a slope factor that was determined through experim
 
 # How to use this library
 It is intended to be a drop-in replacement for the Adafruit BME680 library. First, add this library to the Arduino IDE using the built-in library manager. Next, simply change the include and main object type in your sketch:
-```
+```cpp
 #include <se_bme680.h>
 SE_BME680 bme;
 ```
@@ -61,7 +61,7 @@ Follow the instructions provided for the Adafruit BME680 library to implement st
 
 ## Reading Compensated Values and Dew Point
 The default temperature compensation can be overridden with `bme.setTemperatureOffset(degreesC);` where `degreesC` is an offset in degrees Celsius. A Fahrenheit-based offset can be conveniently specified with `bme.setTemperatureOffsetF(degreesF);`. These functions are ideally placed in `setup()` but can actually be used anywhere in your program logic. Once specified, any subsequent measurements will leverage the new offset. All sensor readings can be accessed in the usual manner, including new properties:
-```
+```cpp
 // Existing properties from the Adafruit library
 float t = bme.temperature; // Raw temperature value from the base Adafruit library, uncompensated
 float h = bme.humidity; // Raw humidity value from the base Adafruit library, uncompensated
@@ -72,7 +72,7 @@ float hc = bme.humidity_compensated; // Compensated humidity value, based on the
 float dp = bme.dew_point; // Dew point calculation, in Celsius
 ```
 ## Reading IAQ
-```
+```cpp
 // Estimated IAQ calculation accuracy: 0=unreliable, 1=low accuracy, 2=medium accuracy, 3=high accuracy, 4=very high accuracy
 if (bme.IAQ_accuracy > 0)
 {
@@ -94,10 +94,12 @@ Donchian Channels can be used to dampen the oscillations by establishing a min/m
 Even though the Donchian Channel approach introduces computational "lag", it is still very responsive when any of the three values break out of the established min/max channel. If notable changes to air quality start to manifest, then gas resistance would likely break out of its channel and influence reported IAQ rather quickly, even if temperature and humidity remain within their channels.
 
 This feature is optional and must be explicity enabled. Also, for it to work well, a value should be selected that compensates for any observed measurement oscillations. Data collection and experimentation will be required to fine-tune an appropriate value. Enable the feature in `setup()` as follows:
-```
+```cpp
 bme.setDonchianSmoothing(true, 200);
 ```
-The demonstration value of 200 is a reasonable starting point. The parameter refers to the number of polling cycles. So, if polling is done every 6000ms (6 seconds), then the smoothing period is 6 X 200 = 1200 seconds of real time, or about 20 minutes. Extend the value experimentally until IAQ oscillations just start to disappear or are reduced to very low levels.
+The demonstration value of 200 is a reasonable starting point. The parameter refers to the number of polling cycles. So, if polling is done every 6000ms (6 seconds), then the smoothing period is 6 X 200 = 1200 seconds of real time, or about 20 minutes. Adjust the value experimentally until IAQ oscillations just start to disappear or are reduced to acceptably low levels.
+
+Note that while Donchian smoothing is used to smooth humidity, temperature and gas resistance for use in the IAQ calculation, those smoothed values are NOT reported on the humidity, temperature or gas resistance properties of the library. Those properties will act the same regardless of whether Donchian smoothing is enabled or not. To be clear, Donchian smoothing ONLY affects the IAQ metric, and by extension, the gas calibration range. Nothing else is affected.
 
 TODO: before and after chart snapshots with thumbnails
 

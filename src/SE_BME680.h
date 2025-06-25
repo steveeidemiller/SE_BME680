@@ -166,7 +166,7 @@ class SE_BME680 : public Adafruit_BME680
     *          Number of periods to use for Donchian smoothing (at least 2, likely 200 or so). This is the number of samples to consider for the min/max range in the smoothing calculation.
     *          A value should be selected that compensates for observed oscillations in humidity readings due to the cycling of air conditioners, heaters, etc.
     */
-    void setDonchianSmoothing(bool enabled, int periods = 200);
+    void setDonchianSmoothing(bool enabled, int periods = 200, float temperatureRangeLimitMax = 0.0F, float humidityRangeLimitMax = 0.0F, float gasResistanceRangeLimitMax = 0.0F);
   
     /*!
     *  @brief  Perform a reading from the BME680 sensor
