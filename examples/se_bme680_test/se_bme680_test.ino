@@ -14,20 +14,22 @@ void setup()
 {
   // Serial initialization
   Serial.begin(115200);
-  while (!Serial);
+  while (!Serial) { delay(10); }
 
-  // Initialize the BME680 sensor
+  // BME680 initialization
   if (!bme.begin())
   {
     Serial.println("ABORT: Could not find a valid BME680 sensor");
     while (1);
   }
 
-  // Uncomment this line to set a temperature compensation, which is also used to compensate humidity
+  // Uncomment one of these lines to set a temperature compensation, which is also used to compensate humidity
   //bme.setTemperatureCompensation(-2.00F); // Celsius offset as type "float"
+  //bme.setTemperatureCompensationF(-3.60F); // Fahrenheit offset as type "float" (this example is the same as -2.00C)
 
   // Uncomment this line to enable Donchian smoothing for the IAQ calculation, which can be used to smooth out oscillations due to the cycling of air conditioners, heaters, etc.
   //bme.setDonchianSmoothing(true, 200); // Enable Donchian smoothing with 200 periods (samples) for humidity and gas resistance readings
+  //bme.setDonchianSmoothing(true, 200, 2.5F, 3.5F, 12500.0F); // Optionally enable Donchian smoothing with range limits
 
   /*
   // Set up the sensor. These settings are the default ones, but you can uncomment this code block and adjust them as needed.

@@ -63,13 +63,15 @@ SE_BME680 bme;
 
 void setup()
 {
+  // Serial initialization
   Serial.begin(115200);
-  while (!Serial) delay(10); // Wait for the console to initialize
+  while (!Serial) { delay(10); }
 
+  // BME680 initialization
   if (!bme.begin())
   {
     Serial.println("BME680 setup failed");
-    while (true) {}
+    while (1);
   }
 
   //bme.setTemperatureCompensation(-2.0F); // Custom temperature offset in Celsius
