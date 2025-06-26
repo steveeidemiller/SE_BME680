@@ -58,8 +58,23 @@ while (true)
 # How to use this library
 It is intended to be a drop-in replacement for the Adafruit BME680 library. First, add this library to the Arduino IDE using the built-in library manager. Next, simply add the include and main object type in your sketch:
 ```cpp
-#include <se_bme680.h>
+#include <SE_BME680.h>
 SE_BME680 bme;
+
+void setup()
+{
+  Serial.begin(115200);
+  while (!Serial) delay(10); // Wait for the console to initialize
+
+  if (!bme.begin())
+  {
+    Serial.println("BME680 setup failed");
+    while (true) {}
+  }
+
+  //bme.setTemperatureCompensation(-2.0F); // Custom temperature offset in Celsius
+  //bme.setDonchianSmoothing(true, 200, 2.5F, 3.5F, 12500.0F); // Optionally enable Donchian smoothing with range limits
+}
 ```
 Follow the instructions provided for the Adafruit BME680 library to implement standard features and functionality as normal.
 
