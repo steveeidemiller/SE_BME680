@@ -16,7 +16,7 @@ The BME680 includes a MOX sensor that can be used to measure the presence of vol
 
 IAQ in this library is reported as a percentage from 0-100%, representing "bad" to "good" air quality. BSEC also offers VOC and CO2 calculations. However, those calculations are derived from the same MOX resistance value and are therefore strongly correlated to the overall IAQ itself. When plotted on the same graph, all three calculations end up looking identical differing only in scale and units. This library does not attempt to replicate those additional calculations for that reason and simply focuses on the main IAQ.
 
-### IMPORTANT
+### Sensor polling interval is IMPORTANT
 IAQ logic depends on tracking the range of gas resistance values to determine where current readings fit within an observed range over time. However, the measured **gas resistance of the BME680 is heavily dependent on the polling interval**. The tracking logic can automatically adjust to reasonable polling intervals but cannot compensate for variations once a polling cadence has been established. Therefore, it is important to **ensure consistent polling intervals for the best possible IAQ calculations**.
 
 The suggested approach is to use a timer:
@@ -37,29 +37,23 @@ while (true)
       float hc = bme.humidity_compensated; // Compensated humidity value, based on the specified temperature compensation
       float dp = bme.dew_point; // Dew point calculation, in Celsius
       float bp = bme.pressure / 100.0F; // Barometric pressure, in mbar
-      if (bme.IAQ_accuracy > 0)
+      if (bme.IAQ_accuracy > 0) // 0 = Unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
       {
         float iaq = bme.IAQ; // Calculated IAQ as a percentage from 0-100% representing "bad" to "good"
       }
       uint32_t gr = bme.gas_resistance; // Ohms
-      float gca = bme.getGasCalibrationAccuracy(); // 0 = Unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
+      float gca = bme.getGasCalibrationAccuracy(); // Gas calibration accuracy from 0-100% representing "bad" to "good"
       int gcs = bme.getGasCalibrationStage(); // 0 = Initialization, 1 = burn-in, 2 = normal operating stage
     }
 
+    //
     // Do other things here, taking care to ensure that these processes do not exceed the interval specified above (6000ms in this example)
-  }
+    //
+
+}
   delay(25); // Non-blocking delay on ESP32, in milliseconds
 }
 ```
-
-## Credits
-The IAQ formula and algorithm in this library is a direct port of the Python code found at:<br/>
-https://github.com/thstielow/raspi-bme680-iaq<br/>
-https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/15<br/>
-
-Full credit for the IAQ feature in this library goes to that project and the extensive research done by its author. The only modifications here are attempts to enhance the gas resistance tracking and stabilization approaches, but the equations are the same.
-
-The author's formula includes a slope factor that was determined through experimentation. Fine-tuning the air quality calculation will require duplicating their approach to determine a more accurate slope factor for a specific BME680 sensor and target environment. 
 
 # How to use this library
 It is intended to be a drop-in replacement for the Adafruit BME680 library. First, add this library to the Arduino IDE using the built-in library manager. Next, simply add the include and main object type in your sketch:
@@ -84,8 +78,8 @@ float dp = bme.dew_point; // Dew point calculation, in Celsius
 ## Reading IAQ
 Reading the IAQ measurement is slightly different since the accuracy must be verified first:
 ```cpp
-// Estimated IAQ calculation accuracy: 0=unreliable, 1=low accuracy, 2=medium accuracy, 3=high accuracy, 4=very high accuracy
-if (bme.IAQ_accuracy > 0)
+// If IAQ is available
+if (bme.IAQ_accuracy > 0) // 0 = Unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
 {
   // Use the IAQ value in your program
   float iaq = bme.IAQ; // Calculated IAQ as a percentage from 0-100% representing "bad" to "good"
@@ -116,16 +110,16 @@ The second line shows how range limits can be specified for temperature, humidit
 Note that while Donchian smoothing is used to smooth humidity, temperature and gas resistance for use in the IAQ calculation, those smoothed values are NOT reported on the humidity, temperature or gas resistance properties of the library. Those properties will act the same regardless of whether Donchian smoothing is enabled or not. To be clear, Donchian smoothing ONLY affects the IAQ metric, and by extension, the gas calibration range. Nothing else is affected.
 
 ### Without Smoothing
-[![Without smoothing](assets/no-smoothing-thumbnail.png)](assets/no-smoothing.png)
+[![Without smoothing](assets/no-smoothing-thumbnail.png)](assets/no-smoothing.png)<br/>
 Without smoothing, IAQ tends to follow oscillations present in temperature, humidity and gas resistance.
 
 ### With Donchian Smoothing
-[![With Donchian smoothing](assets/donchian-smoothing-thumbnail.png)](assets/donchian-smoothing.png)
+[![With Donchian smoothing](assets/donchian-smoothing-thumbnail.png)](assets/donchian-smoothing.png)<br/>
 With Donchian smoothing enabled, and appropriate range limits configured, IAQ becomes very stable.
 
 ### Donchian Smoothing Responsiveness
-[![Donchian smoothing responsiveness](assets/donchian-alcohol-test-thumbnail.png)](assets/donchian-alcohol-test.png)
-Even when Donchian smoothing is enabled, IAQ can still be very responsive. Demonstrated here is a test where the sensor was placed in an alcohol vapor chamber for a few minutes. As shown, IAQ dropped notably, and then recovered nearly as fast. The "notch" at the top of the recovery curve is due to a combination of a range limit on the gas resistance plus the number of smoothing periods specified.
+[![Donchian smoothing responsiveness](assets/donchian-alcohol-test-thumbnail.png)](assets/donchian-alcohol-test.png)<br/>
+Even when Donchian smoothing is enabled, IAQ can still be very responsive. Demonstrated here is a test where the sensor was placed in an alcohol vapor chamber for a few minutes. As shown, IAQ dropped quickly and notably, yet was also able to recover reasonably fast. The "notch" at the top of the recovery curve is due to a combination of a range limit on the gas resistance plus the number of smoothing periods specified.
 
 ### Additional References
 Donchian Channels are a concept used in technical analysis for stock charts:<br/>
@@ -137,3 +131,12 @@ https://github.com/steveeidemiller/sensor-ambient<br/>
 
 ## Example Code
 An example sketch is provided and can be found under "File->Examples->SE BME680 Library->se_bme680_test" in the Arduino IDE.
+
+# Credits
+The IAQ formula and algorithm in this library is a direct port of the Python code discussed at:<br/>
+https://github.com/thstielow/raspi-bme680-iaq<br/>
+https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/15<br/>
+
+Full credit for the IAQ feature in this library goes to that project and the extensive research done by its author. The only modifications here are attempts to enhance the gas resistance tracking and stabilization approaches, but the equations are the same.
+
+The author's formula includes a slope factor that was determined through experimentation. Fine-tuning the air quality calculation will require duplicating their approach to determine a more accurate slope factor for a specific BME680 sensor and target environment. 
