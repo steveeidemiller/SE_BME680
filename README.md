@@ -93,7 +93,7 @@ float hc = bme.humidity_compensated; // Compensated humidity value, based on the
 float dp = bme.dew_point; // Dew point calculation, in Celsius
 ```
 ## Reading IAQ
-Reading the IAQ measurement is slightly different since the accuracy must be verified first:
+Reading the IAQ measurement is slightly different since the availability must be verified first:
 ```cpp
 // If IAQ is available
 if (bme.IAQ_accuracy > 0) // 0 = Unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
@@ -128,15 +128,15 @@ Note that while Donchian smoothing is used to smooth humidity, temperature and g
 
 ### Without Smoothing
 [![Without smoothing](assets/no-smoothing-thumbnail.png)](assets/no-smoothing.png)<br/>
-Without smoothing, IAQ tends to follow oscillations present in temperature, humidity and gas resistance.
+Without smoothing, IAQ (dark blue line on lower chart) tends to follow oscillations present in temperature, humidity and gas resistance.
 
 ### With Donchian Smoothing
 [![With Donchian smoothing](assets/donchian-smoothing-thumbnail.png)](assets/donchian-smoothing.png)<br/>
-With Donchian smoothing enabled, and appropriate range limits configured, IAQ becomes very stable.
+With Donchian smoothing enabled, and appropriate range limits configured, IAQ (dark blue line on lower chart) becomes very stable.
 
 ### Donchian Smoothing Responsiveness
 [![Donchian smoothing responsiveness](assets/donchian-alcohol-test-thumbnail.png)](assets/donchian-alcohol-test.png)<br/>
-Even when Donchian smoothing is enabled, IAQ can still be very responsive. Demonstrated here is a test where the sensor was placed in an alcohol vapor chamber for a few minutes. As shown, IAQ dropped quickly and notably, yet was also able to recover reasonably fast. The "notch" at the top of the recovery curve is due to a combination of a range limit on the gas resistance plus the number of smoothing periods specified.
+Even when Donchian smoothing is enabled, IAQ (dark blue line on lower chart) can still be very responsive. Demonstrated here is a test where the sensor was placed in an alcohol vapor chamber for a few minutes. As shown, IAQ dropped quickly and notably, yet was also able to recover reasonably fast. The "notch" at the top of the recovery curve is due to a combination of a range limit on the gas resistance plus the number of smoothing periods specified.
 
 ### Additional References
 Donchian Channels are a concept used in technical analysis for stock charts:<br/>
@@ -147,13 +147,12 @@ The screenshot charts shown above were taken from an Ambient Sensor project whic
 https://github.com/steveeidemiller/sensor-ambient<br/>
 
 ## Example Code
-An example sketch is provided and can be found under "File->Examples->SE BME680 Library->se_bme680_test" in the Arduino IDE.
+An example sketch is provided and can be found under "File -> Examples -> SE BME680 Library -> se_bme680_test" in the Arduino IDE.
 
 # Credits
-The IAQ formula and algorithm in this library is a direct port of the Python code discussed at:<br/>
+The IAQ formula used in this library is a direct port of the Python code discussed at:<br/>
 https://github.com/thstielow/raspi-bme680-iaq<br/>
 https://forums.pimoroni.com/t/bme680-observed-gas-ohms-readings/6608/15<br/>
-
-Full credit for the IAQ feature in this library goes to that project and the extensive research done by its author. The only modifications here are attempts to enhance the gas resistance tracking and stabilization approaches, but the equations are the same.
+Credit for the IAQ formula goes to that project and the extensive research done by its author. The main additions offered by this library are enhanced gas resistance tracking and an improved stabilization algorithm.
 
 The author's formula includes a slope factor that was determined through experimentation. Fine-tuning the air quality calculation will require duplicating their approach to determine a more accurate slope factor for a specific BME680 sensor and target environment. 
