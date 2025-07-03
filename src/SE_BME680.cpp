@@ -253,9 +253,9 @@ void SE_BME680::calculateIAQ()
       break;
     case 2: // Normal operation stage
       IAQ_accuracy = 1; // Low accuracy by default
-      if (gas_calibration_range < 0.075F) IAQ_accuracy = 2; // Moderate accuracy
+      if (gas_calibration_range < 0.080F) IAQ_accuracy = 2; // Moderate accuracy
       if (gas_calibration_range < 0.035F && sensor_uptime >= 2)   IAQ_accuracy = 3; // High accuracy, requires at least several decay intervals of sensor uptime in the current environment
-      if (gas_calibration_range < 0.020F && sensor_uptime >= 100) IAQ_accuracy = 4; // Very high accuracy, which typicall requires days of sensor uptime in the current environment
+      if (gas_calibration_range < 0.020F && sensor_uptime >= 100) IAQ_accuracy = 4; // Very high accuracy, which typically requires days of sensor uptime in the current environment
       break;
   }
 }

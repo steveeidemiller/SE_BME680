@@ -12,48 +12,9 @@ The default temperature offset in this library is a good starting point. Fine-tu
 A dew point calculation is also provided and is based on the [Magnus formula](https://en.wikipedia.org/wiki/Dew_point#Calculating_the_dew_point). It is derived from the raw temperature and humidity measurements. Since the humidity compensation and dew point calculations are both based on Magnus transformations, there is no "compensated" dew point calculation. Dew point and "compensated" dew point would end up being identical values.
 
 ## IAQ (Indoor Air Quality)
-The BME680 includes a MOX sensor that can be used to measure the presence of volatile organic compounds (VOC's) in the air. The sensor does exhibit some drift over time, making it less suitable as an absolute reference. But it is very responsive and can be used to calculate a relative air quality index. Bosch provides the closed-source BSEC library for this purpose. This library makes no attempt to emulate the BSEC calculations, complexity or accuracy, but instead offers a reasonable approximation using much simpler logic and open-source code.
+The BME680 includes a MOX sensor that can be used to measure the presence of volatile organic compounds (VOC's) in the air. The sensor does exhibit some drift over time, making it less suitable as an absolute reference. But it is very responsive and can be used to calculate a relative air quality index. Bosch provides the closed-source BSEC library for this purpose. This library makes no attempt to emulate the BSEC calculations, complexity or accuracy, but instead offers a reasonable approximation using open-source code.
 
-IAQ in this library is reported as a percentage from 0-100%, representing "bad" to "good" air quality. BSEC also offers VOC and CO2 calculations. However, those calculations are derived from the same MOX resistance value and are therefore strongly correlated to the overall IAQ itself. When plotted on the same graph, all three calculations end up looking identical differing only in scale and units. This library does not attempt to replicate those additional calculations for that reason and simply focuses on the main IAQ.
-
-### Sensor polling interval is IMPORTANT
-IAQ logic depends on tracking the range of gas resistance values to determine where current readings fit within an observed range over time. However, the measured **gas resistance of the BME680 is heavily dependent on the polling interval**. The tracking logic can automatically adjust to reasonable polling intervals but cannot compensate for variations once a polling cadence has been established. Therefore, it is important to **ensure consistent polling intervals for the best possible IAQ calculations**.
-
-The suggested approach is to use a timer:
-```cpp
-unsigned long lastPolled = 0, clock = 0;
-while (true)
-{
-  clock = millis();
-  if (clock - lastPolled >= 6000) // Poll every 6000ms (6 seconds), 10x per minute. 6000 is an arbitrary value for demonstration purposes only.
-  {
-    // Reset the timer
-    lastPolled = clock;
-
-    // Poll the BME680 first, before doing other things, to keep the timing as consistent and accurate as possible
-    if (bme.performReading()) // Takes about 370ms, typically
-    {
-      float tc = bme.temperature_compensated; // Compensated temperature value, in Celsius
-      float hc = bme.humidity_compensated; // Compensated humidity value, based on the specified temperature compensation
-      float dp = bme.dew_point; // Dew point calculation, in Celsius
-      float bp = bme.pressure / 100.0F; // Barometric pressure, in mbar
-      if (bme.IAQ_accuracy > 0) // 0 = Unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
-      {
-        float iaq = bme.IAQ; // Calculated IAQ as a percentage from 0-100% representing "bad" to "good"
-      }
-      uint32_t gr = bme.gas_resistance; // Ohms
-      float gca = bme.getGasCalibrationAccuracy(); // Gas calibration accuracy from 0-100% representing "bad" to "good"
-      int gcs = bme.getGasCalibrationStage(); // 0 = Initialization, 1 = burn-in, 2 = normal operating stage
-    }
-
-    //
-    // Do other things here, taking care to ensure that these processes do not exceed the interval specified above (6000ms in this example)
-    //
-
-}
-  delay(25); // Non-blocking delay on ESP32, in milliseconds
-}
-```
+IAQ in this library is reported as a percentage from 0-100%, representing "bad" to "good" air quality. BSEC also offers VOC and CO2 calculations. However, those calculations are derived from the same MOX resistance value and are therefore strongly correlated to the overall IAQ itself. When plotted on the same graph, all three calculations end up looking identical differing only in scale and units. For that reason, this library does not attempt to replicate those additional calculations and simply focuses on the main IAQ.
 
 # How to use this library
 It is intended to be a drop-in replacement for the Adafruit BME680 library. First, add this library to the Arduino IDE using the built-in library manager. Next, simply add the include and main object type in your sketch:
@@ -93,7 +54,7 @@ float hc = bme.humidity_compensated; // Compensated humidity value, based on the
 float dp = bme.dew_point; // Dew point calculation, in Celsius
 ```
 ## Reading IAQ
-Reading the IAQ measurement is slightly different since the availability must be verified first:
+Reading the IAQ measurement is slightly different since the availability should be verified first:
 ```cpp
 // If IAQ is available
 if (bme.IAQ_accuracy > 0) // 0 = Unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
@@ -107,6 +68,45 @@ IAQ will not be immediately available on sensor startup and/or after soft resets
 When accuracy = 0 the IAQ reading is meaningless and should not be used. It defaults to 50% but that value is arbitrary and should not be trusted. Higher accuracy levels depend simply on time and on the range of gas resistance ceiling values within the tracking algorithm.
 
 If the sensor is started up in an environment with high VOC contaminants, the tracking algorithm should settle along a lower gas resistance boundary. That lower boundary is also enforced as the gas resistance drifts over time. This logic helps prevent self-calibration from reporting contaminated environments as "good", either initially or after prolonged exposure, but should not be relied upon as any kind of safety measure. 
+
+### Sensor polling interval is IMPORTANT
+IAQ logic depends on tracking the range of gas resistance values to determine where current readings fit within an observed range over time. However, the measured **gas resistance of the BME680 is heavily dependent on the polling interval**. The tracking logic can automatically adjust to reasonable polling intervals but cannot compensate for variations once a polling cadence has been established. Therefore, it is important to **ensure consistent polling intervals for the best possible IAQ calculations**.
+
+The suggested approach is to use a timer:
+```cpp
+unsigned long lastPolled = 0, clock = 0;
+while (true)
+{
+  clock = millis();
+  if (clock - lastPolled >= 6000) // Poll every 6000ms (6 seconds), 10x per minute. 6000 is an arbitrary value for demonstration purposes only.
+  {
+    // Reset the timer
+    lastPolled = clock;
+
+    // Poll the BME680 first, before doing other things, to keep the timing as consistent and accurate as possible
+    if (bme.performReading()) // Takes about 370ms, typically
+    {
+      float tc = bme.temperature_compensated; // Compensated temperature value, in Celsius
+      float hc = bme.humidity_compensated; // Compensated humidity value, based on the specified temperature compensation
+      float dp = bme.dew_point; // Dew point calculation, in Celsius
+      float bp = bme.pressure / 100.0F; // Barometric pressure, in mbar
+      if (bme.IAQ_accuracy > 0) // 0 = Unreliable, 1 = low accuracy, 2 = moderate accuracy, 3 = high accuracy, 4 = very high accuracy
+      {
+        float iaq = bme.IAQ; // Calculated IAQ as a percentage from 0-100% representing "bad" to "good"
+      }
+      uint32_t gr = bme.gas_resistance; // Ohms
+      float gca = bme.getGasCalibrationAccuracy(); // Gas calibration accuracy from 0-100% representing "bad" to "good"
+      int gcs = bme.getGasCalibrationStage(); // 0 = Initialization, 1 = burn-in, 2 = normal operating stage
+    }
+
+    //
+    // Do other things here, taking care to ensure that these processes do not exceed the interval specified above (6000ms in this example)
+    //
+
+}
+  delay(25); // Non-blocking delay on ESP32, in milliseconds
+}
+```
 
 ## Donchian Smoothing (Optional)
 Gas resistance is heavily influenced by ambient humidity. The IAQ calculation also references humidity, so oscillations in humidity have a compound effect on reported IAQ. Oscillations in humidity can come from cycling of air conditioners, heaters, etc. Temperature is also used in the IAQ calcuation and typically has similar oscillations. The net result is an IAQ that exhibits notable oscillations even when air quality may not have actually changed significantly.
